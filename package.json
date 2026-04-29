@@ -9,6 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@octokit/auth-app": "^8.2.0",
+    "@octokit/rest": "^22.0.1",
+    "@octokit/webhooks": "^14.2.0",
+    "@supabase/supabase-js": "^2.105.1",
+    "@upstash/redis": "^1.37.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
