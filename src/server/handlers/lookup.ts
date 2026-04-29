@@ -1,0 +1,15 @@
+import { supabaseAdmin } from '@/lib/supabase';
+   
+   /**
+    * Look up our internal repository record by GitHub repo ID.
+    * Returns the row or null if we don't have it (which means installation event
+    * hasn't been processed yet, or the repo was removed).
+    */
+   export async function findRepository(githubRepoId: number) {
+     const { data } = await supabaseAdmin
+       .from('repositories')
+       .select('*')
+       .eq('github_repo_id', githubRepoId)
+       .single();
+     return data;
+   }
