@@ -8,9 +8,9 @@ import 'dotenv/config';
      const INSTALLATION_ID = 128051601;     // from your installations table
      const OWNER = 'Senix-Org';              // your org
      const REPO = 'webhook-test';
-     const PR_NUMBER = 1;
-     const BASE_SHA = '';                    // get from PR's base.sha — see below
-     const HEAD_SHA = '';                    // get from PR's head.sha
+     const PR_NUMBER = 5;
+     const BASE_SHA = '9f68ca0e9292e8bfb98b9dd9d5a4b456734b4711';                    // get from PR's base.sha — see below
+     const HEAD_SHA = 'fba31ffbe540853ee24c04d2cc91370f87af49bd';                    // get from PR's head.sha
    
      const files = await fetchPRFiles(INSTALLATION_ID, OWNER, REPO, PR_NUMBER);
      console.log(`PR has ${files.length} files`);
