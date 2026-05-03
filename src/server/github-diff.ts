@@ -48,3 +48,30 @@ import { getInstallationOctokit } from '@/lib/github-app';
    
      return files;
    }
+   /**
+    * Fetch the raw text content of a file at a specific commit SHA.
+    * Returns null if the file doesn't exist at that SHA (e.g., newly added file
+    * has no `before` content; deleted file has no `after` content).
+    */
+   export async function fetchFileContent(
+     installationId: number,
+     owner: string,
+     repo: string,
+     path: string,
+     sha: string
+   ): Promise<string | null> {
+     const octokit = getInstallationOctokit(installationId);
+     try {
+       const { data } = await octokit.request(
+         'GET /repos/{owner}/{repo}/contents/{path}',
+         { owner, repo, path, ref: sha }
+       );
+       if (Array.isArray(data) || data.type !== 'file') return null;
+       if (!data.content) return null;
+       // GitHub returns base64-encoded content
+       return Buffer.from(data.content, 'base64').toString('utf8');
+     } catch (err: any) {
+       if (err.status === 404) return null;
+       throw err;
+     }
+   }

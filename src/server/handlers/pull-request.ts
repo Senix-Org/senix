@@ -1,13 +1,13 @@
 import { supabaseAdmin } from '@/lib/supabase';
    import { findRepository } from './lookup';
-   import { fetchPRFiles } from '../github-diff';
+   import { fetchPRFiles, fetchFileContent } from '../github-diff';
+   import { diffFile, FileStructuralDiff } from '@/lib/structural-diff';
+   import { detectLanguage } from '@/lib/parser';
    
-   /**
-    * Handles pull_request events.
-    * Relevant actions for now: opened, synchronize (new commits pushed), reopened.
-    * We ignore: closed, edited, labeled, etc. — we'll add them later if useful.
-    */
    const ACTIONS_WE_HANDLE = new Set(['opened', 'synchronize', 'reopened']);
+   
+   // Don't structurally diff massive PRs — bail out and let the LLM stage handle it differently.
+   const MAX_FILES_FOR_STRUCTURAL_DIFF = 50;
    
    export async function handlePullRequest(payload: any): Promise<string> {
      const action = payload.action as string;
@@ -23,16 +23,11 @@ import { supabaseAdmin } from '@/lib/supabase';
        return 'pull_request:missing-fields';
      }
    
-     // Find our internal repo record
      const repo = await findRepository(repoPayload.id);
-     if (!repo) {
-       return `pull_request:unknown-repo:${repoPayload.id}`;
-     }
-     if (!repo.enabled) {
-       return `pull_request:repo-disabled:${repo.full_name}`;
-     }
+     if (!repo) return `pull_request:unknown-repo:${repoPayload.id}`;
+     if (!repo.enabled) return `pull_request:repo-disabled:${repo.full_name}`;
    
-     // Upsert the PR record
+     // Upsert PR
      const { data: prRow, error: prError } = await supabaseAdmin
        .from('pull_requests')
        .upsert(
@@ -56,33 +51,56 @@ import { supabaseAdmin } from '@/lib/supabase';
        throw new Error(`Failed to upsert PR: ${prError?.message}`);
      }
    
-     // Fetch the diff (list of changed files)
      const [owner, repoName] = repo.full_name.split('/');
      const files = await fetchPRFiles(installationId, owner, repoName, pr.number);
    
-     // Create an analysis row in 'queued' state.
-     // We'll process it in Day 5+. For now, just log file counts in error_message
-     // so we can see it in the UI for free.
+     // For each supported file, build a structural diff
+     const supportedFiles = files.filter((f) => detectLanguage(f.filename) !== null);
+     const structural: FileStructuralDiff[] = [];
+   
+     if (supportedFiles.length <= MAX_FILES_FOR_STRUCTURAL_DIFF) {
+       for (const file of supportedFiles) {
+         // Skip removed files for now (no `after` content), but include diff
+         const isAdded = file.status === 'added';
+         const isRemoved = file.status === 'removed';
+   
+         const beforeContent = isAdded
+           ? null
+           : await fetchFileContent(installationId, owner, repoName, file.previous_filename ?? file.filename, pr.base.sha);
+         const afterContent = isRemoved
+           ? null
+           : await fetchFileContent(installationId, owner, repoName, file.filename, pr.head.sha);
+   
+         structural.push(diffFile(file.filename, beforeContent, afterContent));
+       }
+     }
+   
+     // Aggregate counts for the analysis row
      const totalAdditions = files.reduce((sum, f) => sum + (f.additions || 0), 0);
      const totalDeletions = files.reduce((sum, f) => sum + (f.deletions || 0), 0);
+     const symbolChangeCount = structural.reduce(
+       (sum, f) => sum + f.summary.added + f.summary.modified + f.summary.removed,
+       0
+     );
    
-     const { error: analysisError } = await supabaseAdmin
-       .from('analyses')
-       .insert({
-         pull_request_id: prRow.id,
-         commit_sha: pr.head.sha,
-         status: 'queued',
-         risk_flags: {
-           file_count: files.length,
-           additions: totalAdditions,
-           deletions: totalDeletions,
-           sample_files: files.slice(0, 5).map((f) => f.filename),
-         },
-       });
+     const { error: analysisError } = await supabaseAdmin.from('analyses').insert({
+       pull_request_id: prRow.id,
+       commit_sha: pr.head.sha,
+       status: 'queued',
+       risk_flags: {
+         file_count: files.length,
+         supported_file_count: supportedFiles.length,
+         additions: totalAdditions,
+         deletions: totalDeletions,
+         symbol_changes: symbolChangeCount,
+         structural_diff: structural,
+         sample_files: files.slice(0, 5).map((f) => f.filename),
+       },
+     });
    
      if (analysisError) {
        throw new Error(`Failed to create analysis: ${analysisError.message}`);
      }
    
-     return `pull_request:${action}:${repo.full_name}#${pr.number}:files=${files.length}`;
+     return `pull_request:${action}:${repo.full_name}#${pr.number}:files=${files.length}:symbol_changes=${symbolChangeCount}`;
    }
