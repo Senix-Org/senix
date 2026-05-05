@@ -72,7 +72,7 @@ CREATE POLICY repositories_select_owner ON repositories
     )
   );
 
--- Users can only flip the `enabled` flag. We can't restrict columns at
+-- Users can only flip the `enabled` flag. We can't restrict columns at.
 -- the policy level, but `WITH CHECK` confirms ownership on the new row;
 -- the application layer (toggleRepoEnabled action) only ever sets
 -- `enabled`.
