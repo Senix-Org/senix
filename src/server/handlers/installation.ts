@@ -23,7 +23,7 @@ import { supabaseAdmin } from '@/lib/supabase';
      if (action === 'deleted') {
        await supabaseAdmin
          .from('installations')
-         .delete()
+         .update({ uninstalled_at: new Date().toISOString() })
          .eq('github_installation_id', installationId);
        return `installation:deleted:${installationId}`;
      }
