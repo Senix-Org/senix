@@ -32,7 +32,7 @@ export default async function LoginPage({
     <>
       <SiteNav />
       <main className="relative min-h-[calc(100vh-3.5rem)] overflow-hidden flex items-center justify-center px-5 sm:px-6 py-16">
-        <div aria-hidden className="absolute inset-0 bg-grid opacity-50" />
+        <div aria-hidden className="absolute inset-0 bg-grid opacity-50 pointer-events-none" />
         <div
           aria-hidden
           className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-glow-green pointer-events-none"

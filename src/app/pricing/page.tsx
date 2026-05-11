@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { SiteNav } from '@/components/site-nav';
 import { SiteFooter } from '@/components/site-footer';
 import { Reveal, RevealItem, RevealStagger } from '@/components/reveal';
+import SignInButton from '@/components/sign-in-button';
 import { Faq } from './faq';
 
 type Tier = {
@@ -177,16 +177,11 @@ function PricingCard({ tier }: { tier: Tier }): React.ReactElement {
           </li>
         ))}
       </ul>
-      <Link
-        href="/login"
-        className={`mt-8 inline-flex items-center justify-center px-4 py-2.5 rounded-md font-medium text-sm transition-colors ${
-          tier.highlight
-            ? 'bg-green-500 hover:bg-green-400 text-zinc-950'
-            : 'border border-zinc-700 hover:border-zinc-600 text-zinc-100 hover:bg-zinc-800/40'
-        }`}
-      >
-        {tier.cta}
-      </Link>
+      <SignInButton
+        label={tier.cta}
+        variant={tier.highlight ? 'primary' : 'secondary'}
+        className="mt-8"
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { NavLink } from './site-nav';
+import SignInButton from './sign-in-button';
 
 type MobileMenuProps = {
   links: NavLink[];
@@ -94,20 +95,8 @@ export function MobileMenu({ links }: MobileMenuProps): React.ReactElement {
                 }}
                 className="mt-8 flex flex-col gap-3"
               >
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="text-center py-3 rounded-md bg-green-500 text-zinc-950 font-medium"
-                >
-                  Get started
-                </Link>
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="text-center py-3 rounded-md border border-zinc-800 text-zinc-300"
-                >
-                  Sign in
-                </Link>
+                <SignInButton label="Get started" variant="mobile-primary" />
+                <SignInButton label="Sign in" variant="mobile-secondary" />
               </motion.div>
             </motion.nav>
           </motion.div>

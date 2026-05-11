@@ -25,12 +25,18 @@ export default function AutoSignIn({ next }: Props): React.ReactElement {
         const callback = new URL('/auth/callback', window.location.origin);
         callback.searchParams.set('next', next);
 
-        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
           provider: 'github',
-          options: { redirectTo: callback.toString() },
+          options: { redirectTo: callback.toString(), skipBrowserRedirect: true },
         });
-        if (oauthError && !cancelled) {
-          setError(oauthError.message);
+        if (oauthError) {
+          throw oauthError;
+        }
+        if (!data.url) {
+          throw new Error('GitHub OAuth did not return a redirect URL.');
+        }
+        if (!cancelled) {
+          window.location.assign(data.url);
         }
       } catch (e) {
         if (!cancelled) {

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import SignInButton from './sign-in-button';
 import { MobileMenu } from './site-nav-mobile';
 
 export type NavLink = {
@@ -67,18 +68,8 @@ export function SiteNav({ rightSlot }: SiteNavProps = {}): React.ReactElement {
 function PublicAuthCluster(): React.ReactElement {
   return (
     <>
-      <Link
-        href="/login"
-        className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
-      >
-        Sign in
-      </Link>
-      <Link
-        href="/login"
-        className="text-sm font-medium px-3.5 py-1.5 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 transition-colors"
-      >
-        Get started
-      </Link>
+      <SignInButton label="Sign in" variant="text" />
+      <SignInButton label="Get started" variant="primary" />
     </>
   );
 }

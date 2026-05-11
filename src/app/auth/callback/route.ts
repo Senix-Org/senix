@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,11 @@ export const dynamic = 'force-dynamic';
  * authorise the GitHub App; we exchange the `code` for a session, set
  * the cookies, then bounce them onward. Honours an optional `next`
  * query param so the /setup flow can resume mid-install.
+ *
+ * After a successful session exchange we ensure a `users` row exists
+ * for this auth user. Previously this only happened in `/setup`, so
+ * users who signed in without first installing the GitHub App had no
+ * `users` row and the RLS-gated dashboard queries returned nothing.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams, origin } = req.nextUrl;
@@ -23,6 +29,38 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (error) {
     return NextResponse.redirect(`${origin}/?error=auth_failed`);
+  }
+
+  // Ensure the public `users` row exists for this auth user so that
+  // RLS policies (which chain through `users.auth_user_id`) work on
+  // the very first login, even before the GitHub App is installed.
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData.user) {
+      const meta = authData.user.user_metadata ?? {};
+      const githubUsername =
+        (meta.user_name as string | undefined) ??
+        (meta.preferred_username as string | undefined) ??
+        null;
+      const providerIdRaw = (meta.provider_id as string | number | undefined) ?? null;
+      const githubUserId =
+        typeof providerIdRaw === 'string'
+          ? Number(providerIdRaw)
+          : (providerIdRaw as number | null);
+
+      await supabaseAdmin.from('users').upsert(
+        {
+          auth_user_id: authData.user.id,
+          github_username: githubUsername,
+          github_user_id: githubUserId,
+          email: authData.user.email ?? null,
+        },
+        { onConflict: 'auth_user_id' }
+      );
+    }
+  } catch {
+    // Non-fatal — the user can still reach the dashboard; the row
+    // will be created on the next visit through /setup if needed.
   }
 
   return NextResponse.redirect(`${origin}${next}`);

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
-  ArrowRight,
   GitBranch,
   GitPullRequest,
   MessageSquareCode,
@@ -9,6 +8,7 @@ import {
 import { SiteNav } from '@/components/site-nav';
 import { SiteFooter } from '@/components/site-footer';
 import { Reveal, RevealItem, RevealStagger } from '@/components/reveal';
+import SignInButton from '@/components/sign-in-button';
 
 type HomeSearchParams = { code?: string; next?: string };
 
@@ -110,7 +110,7 @@ export default async function HomePage({
 function Hero(): React.ReactElement {
   return (
     <section className="relative overflow-hidden border-b border-zinc-800/40">
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-60" />
+      <div aria-hidden className="absolute inset-0 bg-grid opacity-60 pointer-events-none" />
       <div
         aria-hidden
         className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-glow-green pointer-events-none"
@@ -138,16 +138,7 @@ function Hero(): React.ReactElement {
         </Reveal>
         <Reveal delay={0.18}>
           <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="group inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 font-medium text-sm transition"
-            >
-              Get started free
-              <ArrowRight
-                size={16}
-                className="transition-transform group-hover:translate-x-0.5"
-              />
-            </Link>
+            <SignInButton label="Get started free" variant="hero" showArrow />
             <Link
               href="#how-it-works"
               className="inline-flex items-center justify-center px-5 py-3 rounded-md border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50 text-zinc-200 font-medium text-sm transition"
@@ -382,7 +373,7 @@ function Stats(): React.ReactElement {
 function FinalCta(): React.ReactElement {
   return (
     <section className="relative overflow-hidden">
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-50" />
+      <div aria-hidden className="absolute inset-0 bg-grid opacity-50 pointer-events-none" />
       <div
         aria-hidden
         className="absolute -top-20 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-glow-green opacity-90 pointer-events-none"
@@ -401,16 +392,12 @@ function FinalCta(): React.ReactElement {
           </p>
         </Reveal>
         <Reveal delay={0.16}>
-          <Link
-            href="/login"
-            className="group mt-9 inline-flex items-center gap-1.5 px-6 py-3 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 font-medium text-sm transition"
-          >
-            Get started free
-            <ArrowRight
-              size={16}
-              className="transition-transform group-hover:translate-x-0.5"
-            />
-          </Link>
+          <SignInButton
+            label="Get started free"
+            variant="hero"
+            showArrow
+            className="mt-9 px-6"
+          />
         </Reveal>
       </div>
     </section>
