@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enqueue, type JobPayloadMap } from '@/lib/queue';
 import { findRepository } from './lookup';
@@ -102,13 +103,12 @@ type DispatchOutcome =
   | 'dispatch-failed';
 
 /**
- * Trigger the analysis. Synchronously kicks off a fetch to the internal
- * serverless route but does NOT await its body — the webhook handler can
- * return to GitHub in milliseconds while the analysis runs in its own
- * function invocation.
+ * Trigger the analysis. Wraps the fetch in Vercel's waitUntil so the
+ * serverless function stays alive until the dispatch settles, even after
+ * the webhook handler returns 200 to GitHub.
  *
- * If the fetch can't even be initiated (missing config), fall back to
- * the Redis queue so the polling worker picks it up.
+ * If the fetch fails, fall back to the Redis queue so the polling worker
+ * can still recover the job.
  */
 async function dispatchAnalyzePr(
   payload: JobPayloadMap['analyze-pr']
@@ -118,23 +118,23 @@ async function dispatchAnalyzePr(
 
   if (siteUrl && secret) {
     try {
-      // Kick off the request but don't await the response body. We only
-      // attach a catch so an unhandled rejection doesn't crash the runtime.
-      const pending = fetch(`${siteUrl}/api/internal/analyze-pr`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-senix-internal-secret': secret,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      void pending.catch((err) => {
-        console.error('[pull-request] async analyze-pr dispatch failed', {
-          analysisId: payload.analysisId,
-          message: err?.message ?? String(err),
-        });
-      });
+      waitUntil(
+        fetch(`${siteUrl}/api/internal/analyze-pr`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-senix-internal-secret': secret,
+          },
+          body: JSON.stringify(payload),
+        }).catch((err) => {
+          console.error('[pull-request] analyze-pr dispatch failed', {
+            analysisId: payload.analysisId,
+            message: err?.message ?? String(err),
+          });
+          // Fallback: enqueue to Redis so the worker can pick it up
+          return enqueue('analyze-pr', payload);
+        })
+      );
 
       return 'serverless-dispatched';
     } catch (err: any) {
