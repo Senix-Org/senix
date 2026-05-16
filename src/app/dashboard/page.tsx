@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import RepoToggle from '@/components/repo-toggle';
 import { Reveal } from '@/components/reveal';
 import { RecentAnalyses } from '@/components/dashboard/recent-analyses';
+import { ManageTokens, type ManageTokenView } from '@/components/dashboard/manage-tokens';
 import type { AnalysisCardData } from '@/components/dashboard/analysis-card';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,13 @@ type RepoRow = {
   installations: { account_login: string } | null;
 };
 
+type McpTokenRow = {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+};
+
 /**
  * Customer dashboard. Reads the signed-in user's recent analyses and
  * connected repos through the user-context Supabase client (so RLS
@@ -41,7 +49,7 @@ type RepoRow = {
 export default async function DashboardPage(): Promise<React.ReactElement> {
   const supabase = await createServerSupabaseClient();
 
-  const [analysesResult, reposResult] = await Promise.all([
+  const [analysesResult, reposResult, tokensResult] = await Promise.all([
     supabase
       .from('analyses')
       .select(
@@ -55,10 +63,22 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
       .select('id, full_name, enabled, installations!inner(account_login, uninstalled_at)')
       .is('installations.uninstalled_at', null)
       .order('full_name', { ascending: true }),
+    supabase
+      .from('mcp_tokens')
+      .select('id, name, created_at, last_used_at')
+      .order('created_at', { ascending: false }),
   ]);
 
   const analyses = (analysesResult.data ?? []) as unknown as AnalysisRow[];
   const repos = (reposResult.data ?? []) as unknown as RepoRow[];
+  const tokenRows = (tokensResult.data ?? []) as unknown as McpTokenRow[];
+
+  const mcpTokens: ManageTokenView[] = tokenRows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    createdAt: t.created_at,
+    lastUsedAt: t.last_used_at,
+  }));
 
   const enabledRepoCount = repos.filter((r) => r.enabled).length;
   const weeklyAnalysisCount = analyses.filter(
@@ -154,6 +174,16 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
               ))}
             </ul>
           )}
+        </section>
+      </Reveal>
+
+      <Reveal delay={0.15}>
+        <section>
+          <SectionHeading title="Manage tokens" />
+          <p className="text-sm text-zinc-400 mt-1 mb-4">
+            MCP tokens connect Senix to your IDE. Revoke any token you no longer use.
+          </p>
+          <ManageTokens tokens={mcpTokens} />
         </section>
       </Reveal>
     </div>

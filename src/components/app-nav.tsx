@@ -35,10 +35,10 @@ export function AppNav({ handle, avatarUrl }: AppNavProps): React.ReactElement {
             Dashboard
           </Link>
           <Link
-            href="/dashboard/mcp-tokens"
+            href="/dashboard/connect"
             className="text-zinc-400 hover:text-zinc-100 transition-colors"
           >
-            MCP tokens
+            Connect IDE
           </Link>
         </nav>
 
