@@ -23,9 +23,9 @@ const TIERS: Tier[] = [
     blurb: 'For solo developers',
     features: [
       'Up to 3 repos',
-      '50 reviews / month',
-      '3-sentence behavioral summaries',
-      'All 8 risk-flag categories',
+      '50 PR analyses per month',
+      'MCP integration for IDEs',
+      '100 MCP analyses per month',
       'Community support',
     ],
     cta: 'Start free trial',
@@ -37,10 +37,11 @@ const TIERS: Tier[] = [
     blurb: 'For small teams',
     features: [
       'Up to 10 repos',
-      '500 reviews / month',
-      'Slack + email digest (soon)',
-      'Per-repo enable / disable',
+      '500 PR analyses per month',
+      'MCP integration for IDEs',
+      '1,000 MCP analyses per month',
       'Email support',
+      'Priority response',
     ],
     cta: 'Start free trial',
     highlight: true,
@@ -52,10 +53,11 @@ const TIERS: Tier[] = [
     blurb: 'For serious teams',
     features: [
       'Unlimited repos',
-      '5,000 reviews / month',
-      'Custom risk taxonomy (soon)',
+      '5,000 PR analyses per month',
+      'MCP integration for IDEs',
+      '10,000 MCP analyses per month',
       'Priority support',
-      'SSO + audit log (soon)',
+      'Custom risk flag configuration (coming soon)',
     ],
     cta: 'Start free trial',
   },
@@ -112,7 +114,12 @@ export default function PricingPage(): React.ReactElement {
               </h1>
             </Reveal>
             <Reveal delay={0.1}>
-              <p className="mt-5 text-zinc-400 max-w-xl mx-auto leading-relaxed">
+              <p className="mt-5 text-zinc-200 max-w-xl mx-auto leading-relaxed">
+                One subscription. GitHub PR reviews + IDE integration via MCP.
+              </p>
+            </Reveal>
+            <Reveal delay={0.13}>
+              <p className="mt-2 text-zinc-400 max-w-xl mx-auto leading-relaxed">
                 Start free for 14 days. No credit card required.
               </p>
             </Reveal>
@@ -127,6 +134,22 @@ export default function PricingPage(): React.ReactElement {
               </RevealItem>
             ))}
           </RevealStagger>
+        </section>
+
+        <section className="max-w-3xl mx-auto px-5 sm:px-6 pb-20">
+          <Reveal>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-7">
+              <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
+                What&apos;s the difference between PR and MCP analyses?
+              </h2>
+              <p className="mt-3 text-zinc-400 leading-relaxed">
+                PR analyses run automatically when you open or update a pull request. MCP
+                analyses run on-demand when you ask your IDE&apos;s AI (Cursor, Claude Code,
+                Windsurf) to review your changes. Both use the same prompt and risk
+                taxonomy.
+              </p>
+            </div>
+          </Reveal>
         </section>
 
         <section className="max-w-3xl mx-auto px-5 sm:px-6 pb-28">

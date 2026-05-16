@@ -27,6 +27,21 @@ export function AppNav({ handle, avatarUrl }: AppNavProps): React.ReactElement {
           <span className="font-mono text-sm tracking-tight text-zinc-100">senix</span>
         </Link>
 
+        <nav className="hidden sm:flex items-center gap-6 text-sm">
+          <Link
+            href="/dashboard"
+            className="text-zinc-400 hover:text-zinc-100 transition-colors"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/dashboard/mcp-tokens"
+            className="text-zinc-400 hover:text-zinc-100 transition-colors"
+          >
+            MCP tokens
+          </Link>
+        </nav>
+
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 cursor-default select-none">
             {avatarUrl && (
