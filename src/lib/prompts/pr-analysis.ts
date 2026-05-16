@@ -14,9 +14,11 @@ const MAX_BODY_CHARS = 500;
  * Build the system prompt for the PR analysis call.
  *
  * The prompt establishes Claude's role as a senior reviewer and pins down
- * the exact contract for the `submit_analysis` tool — what counts as a
- * behavioral change, which risks to flag, how to scope risk_level, and how
- * many sentences the summary must contain.
+ * the exact contract for the analysis: what counts as a behavioral change,
+ * which risks to flag, how to scope risk_level, how many sentences the
+ * summary must contain, and the shipping-brief fields (ship_decision,
+ * risky_files, verification_steps) that turn the analysis into an
+ * actionable review.
  */
 export function buildSystemPrompt(): string {
   return `You are a senior code reviewer. Your job is to analyze a pull request's structural diff and tell another engineer what behaviorally changed — not what stylistically changed.
@@ -58,7 +60,25 @@ Rules:
    - lines: a line range string like "42-58" or "10"
    - reason: one sentence explaining why a reviewer should look here
 
-7. ALWAYS respond with a single valid JSON object matching the required schema. No prose, no markdown, no preamble — only the JSON.`;
+7. SHIP DECISION. Set ship_decision to exactly one of these three strings, and keep it consistent with risk_level:
+
+   - "do not ship until fixed" when risk_level is "high". The change carries a real production hazard that must be resolved before merging.
+   - "ship after checking" when risk_level is "medium". The change is probably fine, but a reviewer should confirm specific behavior first.
+   - "safe to ship" when risk_level is "low". No behavioral hazard was found.
+
+8. RISKY FILES. risky_files lists only the files that carry real production risk. A pure styling, formatting, comment, or documentation change must never appear here. If no file carries production risk, return an empty array. Each entry must contain:
+
+   - file: the file path exactly as given in the diff.
+   - line_range: the affected line numbers, written as a range like "20-36" or as a single line like "45".
+   - symbol: the function, method, or class name involved, when one applies. Omit this field if no single symbol fits.
+   - what_changed: one sentence describing what the code now does.
+   - why_risky: one sentence describing the production impact if this behavior is wrong.
+   - how_to_verify: one concrete test the developer can run. Name the function and the exact input, for example "Call updateUnits with a negative number and confirm the request is rejected." Never write vague advice like "test the function".
+   - suggested_fix: the direction of a safe fix or guardrail. Describe what a correct fix should preserve. Do not write full code.
+
+9. VERIFICATION STEPS. verification_steps is an ordered list of at most 5 concrete checks a developer should run before shipping. Each step must be specific and actionable, naming the function, endpoint, or input to exercise. Vague steps are not acceptable. If the change is trivial (styling, formatting, comments, or documentation only), return an empty array.
+
+10. ALWAYS respond with a single valid JSON object matching the required schema. No prose, no markdown, no preamble — only the JSON.`;
 }
 
 /**

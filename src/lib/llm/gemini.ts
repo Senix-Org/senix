@@ -1,5 +1,10 @@
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { buildSystemPrompt, buildUserPrompt } from '@/lib/prompts/pr-analysis';
+import {
+  normalizeRiskyFiles,
+  normalizeVerificationSteps,
+  resolveShipDecision,
+} from '@/lib/llm/normalize';
 import type {
   AnalysisInput,
   AnalysisResult,
@@ -13,6 +18,9 @@ type GeminiAnalysisJson = {
   risk_level: RiskLevel;
   risk_flags: string[];
   focus_areas: FocusArea[];
+  ship_decision?: unknown;
+  risky_files?: unknown;
+  verification_steps?: unknown;
 };
 
 const MODEL = 'gemini-2.5-flash-lite';
@@ -51,8 +59,63 @@ const RESPONSE_SCHEMA: Schema = {
       },
       description: 'Up to 3 file/line ranges that deserve reviewer attention.',
     },
+    ship_decision: {
+      type: Type.STRING,
+      enum: ['safe to ship', 'ship after checking', 'do not ship until fixed'],
+      description: 'Ship recommendation, consistent with risk_level.',
+    },
+    risky_files: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          file: { type: Type.STRING, description: 'File path exactly as given in the diff.' },
+          line_range: { type: Type.STRING, description: 'Affected lines, e.g. "20-36" or "45".' },
+          symbol: {
+            type: Type.STRING,
+            description: 'Function, method, or class name involved, when one applies.',
+          },
+          what_changed: {
+            type: Type.STRING,
+            description: 'One sentence on what the code now does.',
+          },
+          why_risky: { type: Type.STRING, description: 'One sentence on the production impact.' },
+          how_to_verify: {
+            type: Type.STRING,
+            description: 'A concrete test the developer can run.',
+          },
+          suggested_fix: {
+            type: Type.STRING,
+            description: 'The direction of a safe fix, not full code.',
+          },
+        },
+        required: [
+          'file',
+          'line_range',
+          'what_changed',
+          'why_risky',
+          'how_to_verify',
+          'suggested_fix',
+        ],
+      },
+      description: 'Files with real production risk. Empty when nothing risky was found.',
+    },
+    verification_steps: {
+      type: Type.ARRAY,
+      maxItems: '5',
+      items: { type: Type.STRING },
+      description: 'Up to 5 concrete checks to run before shipping. Empty for trivial changes.',
+    },
   },
-  required: ['summary', 'risk_level', 'risk_flags', 'focus_areas'],
+  required: [
+    'summary',
+    'risk_level',
+    'risk_flags',
+    'focus_areas',
+    'ship_decision',
+    'risky_files',
+    'verification_steps',
+  ],
 };
 
 /**
@@ -146,6 +209,9 @@ export class GeminiProvider implements LLMProvider {
       riskLevel: parsed.risk_level,
       riskFlags: parsed.risk_flags,
       focusAreas: parsed.focus_areas,
+      shipDecision: resolveShipDecision(parsed.ship_decision, parsed.risk_level),
+      riskyFiles: normalizeRiskyFiles(parsed.risky_files),
+      verificationSteps: normalizeVerificationSteps(parsed.verification_steps),
       tokensUsed,
       costUsdCents: 0,
       provider: 'gemini',

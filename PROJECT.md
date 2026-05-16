@@ -4,9 +4,14 @@ This file is the compact handoff for agents working on Senix. It summarizes what
 
 ## What Senix Is
 
-Senix is a GitHub App that analyzes pull requests and explains the behavioral impact of code changes. The product is aimed at teams shipping with AI coding tools such as Cursor, Copilot, and Claude Code, where PR volume and code velocity make line-by-line review harder.
+Senix is a GitHub App and MCP server that analyzes code changes and explains their behavioral impact. The product is aimed at teams shipping with AI coding tools such as Cursor, Copilot, Claude Code, and Windsurf, where PR volume and code velocity make line-by-line review harder.
 
-The core customer-facing output is a short GitHub PR comment and dashboard entry containing:
+Senix has two analysis surfaces:
+
+- GitHub PR analysis: automatic analysis on pull request open, reopen, or synchronize, with a short GitHub PR comment and dashboard entry.
+- MCP IDE analysis: on-demand analysis from MCP-compatible IDEs, returning the same kind of result directly to the developer's AI assistant.
+
+The core customer-facing output contains:
 
 - An exactly 3-sentence behavioral summary.
 - A `low`, `medium`, or `high` risk level.
@@ -24,6 +29,7 @@ The current public positioning is "AI code review for your pull requests" and "r
 - Queue: Upstash Redis lists.
 - Worker: standalone Node/tsx process in `worker/`.
 - GitHub integration: GitHub App webhooks plus installation-scoped Octokit clients.
+- MCP integration: manual HTTP JSON-RPC route at `/api/mcp`, backed by dashboard-managed personal access tokens.
 - LLM providers: Anthropic, Gemini, Groq, and DeepSeek through a common provider interface.
 - Structural parsing: tree-sitter for JavaScript, TypeScript, TSX, and Python.
 
@@ -51,6 +57,18 @@ Note: older docs mention Next 14, shadcn/ui, Clerk, and Anthropic as the main pr
    - Optionally posts or updates the PR comment if `POST_PR_COMMENTS=true`.
    - Stores summary, risk, flags, focus areas, structural metadata, token usage, cost, comment IDs/URLs, and errors on the `analyses` row.
 
+## MCP Runtime Flow
+
+1. An MCP-compatible IDE calls `POST /api/mcp`.
+2. `src/app/api/mcp/route.ts` verifies `Authorization: Bearer sk_mcp_...`.
+3. The route hashes the presented token with SHA-256 and checks `mcp_tokens` for a matching, non-revoked row.
+4. `initialize`, `tools/list`, `tools/call`, and `ping` JSON-RPC methods are handled directly in the route.
+5. The only exposed tool is `analyze_code_changes`.
+6. For `tools/call`, the route accepts IDE-supplied file changes with `before` and `after` contents.
+7. It builds tree-sitter structural diffs through the shared parser/diff code.
+8. It calls the shared LLM provider through `getLLMProvider().analyzePR()`.
+9. It returns an MCP tool response with readable text plus structured summary, risk level, risk flags, and focus areas.
+
 ## Important Files
 
 - `src/app/page.tsx`: marketing landing page and OAuth defensive redirect from `/`.
@@ -64,6 +82,10 @@ Note: older docs mention Next 14, shadcn/ui, Clerk, and Anthropic as the main pr
 - `src/app/internal/test/page.tsx`: Basic Auth internal analysis/test panel.
 - `src/app/api/internal/queue/route.ts`: internal queue/failed-analysis status endpoint.
 - `src/app/api/internal/requeue-failed/route.ts`: requeues failed analyses from the last 24 hours.
+- `src/app/api/mcp/route.ts`: MCP HTTP JSON-RPC route and `analyze_code_changes` tool.
+- `src/app/dashboard/mcp-tokens/page.tsx`: signed-in user's MCP token management page.
+- `src/app/dashboard/mcp-tokens/actions.ts`: generate/revoke MCP token server actions.
+- `src/components/mcp-tokens/mcp-token-manager.tsx`: interactive token list and one-time token display modal.
 - `src/lib/prompts/pr-analysis.ts`: core prompt contract and risk taxonomy.
 - `src/lib/llm/*`: provider adapters and the provider-agnostic analysis contract.
 - `src/lib/parser.ts`, `src/lib/symbols.ts`, `src/lib/structural-diff.ts`: tree-sitter language detection, symbol extraction, and structural diffing.
@@ -72,6 +94,7 @@ Note: older docs mention Next 14, shadcn/ui, Clerk, and Anthropic as the main pr
 - `src/server/github-comments.ts`: create/update Senix PR comments.
 - `worker/index.ts`: worker boot, env validation, polling, heartbeat, shutdown.
 - `worker/handlers/analyze-pr.ts`: main PR analysis orchestration.
+- `src/app/docs/mcp/page.tsx`: MCP setup docs for Cursor, Claude Code, Windsurf, and compatible IDEs.
 
 ## Data Model
 
@@ -82,6 +105,7 @@ See `docs/schema.md` and migrations in `docs/migrations/`. Current important tab
 - `repositories`: repos available to an installation. Includes `enabled` toggle.
 - `pull_requests`: cached PR metadata and commit SHAs.
 - `analyses`: one analysis run per PR commit. Stores status, summary, risk, focus areas, structural metadata, LLM cost, and optional GitHub comment tracking.
+- `mcp_tokens`: hashed personal access tokens for MCP IDE access. Plaintext tokens are shown once on generation and never stored.
 - `webhook_events`: audit log of every webhook delivery.
 
 RLS is intended for user-context dashboard reads. Service-role `supabaseAdmin` bypasses RLS and is used by webhook handlers, worker, setup linking, and internal tools.
@@ -102,6 +126,12 @@ The prompt in `src/lib/prompts/pr-analysis.ts` is strict: exactly 3 summary sent
 Supported languages are `.js`, `.jsx`, `.ts`, `.tsx`, and `.py`.
 
 The structural diff parser extracts functions, classes, methods, and variable declarations. It hashes normalized symbol body text to identify added, removed, modified, and unchanged symbols while ignoring whitespace-only differences. Unsupported files still count in metadata but have no symbol-level detail.
+
+## MCP Behavior
+
+The MCP server is implemented manually as HTTP JSON-RPC in `src/app/api/mcp/route.ts`; `@modelcontextprotocol/sdk` is not installed or used by the current code. Supported methods are `initialize`, `tools/list`, `tools/call`, and `ping`.
+
+The route exposes one tool, `analyze_code_changes`, which accepts file path plus `before`/`after` contents for each changed file and optional context. MCP analysis intentionally reuses the same prompt, risk taxonomy, parser, structural diff, and LLM provider interface as GitHub PR analysis. The input source is different, but the analysis contract is shared.
 
 ## PR Comment Behavior
 
@@ -166,5 +196,6 @@ Treat these as user or existing work unless you know you made the changes. Do no
 - For webhook/queue/worker bugs, read `src/app/api/webhooks/github/route.ts`, `src/server/handlers/*`, `src/lib/queue.ts`, and `worker/handlers/analyze-pr.ts`.
 - For auth/setup/dashboard bugs, read `src/lib/supabase-server.ts`, `src/middleware.ts`, `src/app/auth/callback/route.ts`, `src/app/setup/page.tsx`, and dashboard files.
 - For analysis quality, read `src/lib/prompts/pr-analysis.ts`, `src/lib/llm/*`, `src/lib/structural-diff.ts`, and eval cases.
+- For MCP behavior, read `src/app/api/mcp/route.ts`, `src/app/dashboard/mcp-tokens/actions.ts`, `src/components/mcp-tokens/mcp-token-manager.tsx`, `docs/migrations/006-mcp-tokens.sql`, `src/lib/llm/types.ts`, `src/lib/structural-diff.ts`, and `src/app/docs/mcp/page.tsx`.
 - For schema/RLS issues, check `docs/schema.md` plus migrations before changing app queries.
 - Keep changes scoped. This project has active product, infra, and prompt surfaces tightly coupled through Supabase rows and queue payloads.

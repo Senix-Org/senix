@@ -1,5 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildSystemPrompt, buildUserPrompt } from '@/lib/prompts/pr-analysis';
+import {
+  normalizeRiskyFiles,
+  normalizeVerificationSteps,
+  resolveShipDecision,
+} from '@/lib/llm/normalize';
 import type {
   AnalysisInput,
   AnalysisResult,
@@ -13,6 +18,9 @@ type ToolInput = {
   risk_level: RiskLevel;
   risk_flags: string[];
   focus_areas: FocusArea[];
+  ship_decision?: unknown;
+  risky_files?: unknown;
+  verification_steps?: unknown;
 };
 
 const MODEL = 'claude-sonnet-4-6';
@@ -57,8 +65,60 @@ const TOOL_INPUT_SCHEMA = {
       },
       description: 'Up to 3 file/line ranges that deserve reviewer attention.',
     },
+    ship_decision: {
+      type: 'string',
+      enum: ['safe to ship', 'ship after checking', 'do not ship until fixed'],
+      description: 'Ship recommendation, consistent with risk_level.',
+    },
+    risky_files: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', description: 'File path exactly as given in the diff.' },
+          line_range: { type: 'string', description: 'Affected lines, e.g. "20-36" or "45".' },
+          symbol: {
+            type: 'string',
+            description: 'Function, method, or class name involved, when one applies.',
+          },
+          what_changed: { type: 'string', description: 'One sentence on what the code now does.' },
+          why_risky: { type: 'string', description: 'One sentence on the production impact.' },
+          how_to_verify: {
+            type: 'string',
+            description: 'A concrete test the developer can run.',
+          },
+          suggested_fix: {
+            type: 'string',
+            description: 'The direction of a safe fix, not full code.',
+          },
+        },
+        required: [
+          'file',
+          'line_range',
+          'what_changed',
+          'why_risky',
+          'how_to_verify',
+          'suggested_fix',
+        ],
+      },
+      description: 'Files with real production risk. Empty when nothing risky was found.',
+    },
+    verification_steps: {
+      type: 'array',
+      maxItems: 5,
+      items: { type: 'string' },
+      description: 'Up to 5 concrete checks to run before shipping. Empty for trivial changes.',
+    },
   },
-  required: ['summary', 'risk_level', 'risk_flags', 'focus_areas'],
+  required: [
+    'summary',
+    'risk_level',
+    'risk_flags',
+    'focus_areas',
+    'ship_decision',
+    'risky_files',
+    'verification_steps',
+  ],
 };
 
 /**
@@ -135,6 +195,9 @@ export class AnthropicProvider implements LLMProvider {
       riskLevel: toolInput.risk_level,
       riskFlags: toolInput.risk_flags,
       focusAreas: toolInput.focus_areas,
+      shipDecision: resolveShipDecision(toolInput.ship_decision, toolInput.risk_level),
+      riskyFiles: normalizeRiskyFiles(toolInput.risky_files),
+      verificationSteps: normalizeVerificationSteps(toolInput.verification_steps),
       tokensUsed,
       costUsdCents,
       provider: 'anthropic',

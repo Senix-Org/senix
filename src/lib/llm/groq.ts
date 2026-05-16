@@ -1,5 +1,10 @@
 import Groq from 'groq-sdk';
 import { buildSystemPrompt, buildUserPrompt } from '@/lib/prompts/pr-analysis';
+import {
+  normalizeRiskyFiles,
+  normalizeVerificationSteps,
+  resolveShipDecision,
+} from '@/lib/llm/normalize';
 import type {
   AnalysisInput,
   AnalysisResult,
@@ -13,6 +18,9 @@ type GroqAnalysisJson = {
   riskLevel: RiskLevel;
   riskFlags: string[];
   focusAreas: FocusArea[];
+  shipDecision?: unknown;
+  riskyFiles?: unknown;
+  verificationSteps?: unknown;
 };
 
 const MODEL = 'openai/gpt-oss-120b';
@@ -22,7 +30,7 @@ const CHARS_PER_TOKEN_ESTIMATE = 4;
 
 const JSON_SCHEMA_INSTRUCTION = `
 
-You MUST respond with a JSON object matching exactly this schema: { "summary": string, "riskLevel": "low" | "medium" | "high", "riskFlags": string[], "focusAreas": Array<{"file": string, "lines": string, "reason": string}> }. No markdown, no preamble, just the JSON.`;
+You MUST respond with a JSON object matching exactly this schema: { "summary": string, "riskLevel": "low" | "medium" | "high", "riskFlags": string[], "focusAreas": Array<{"file": string, "lines": string, "reason": string}>, "shipDecision": "safe to ship" | "ship after checking" | "do not ship until fixed", "riskyFiles": Array<{"file": string, "lineRange": string, "symbol": string, "whatChanged": string, "whyRisky": string, "howToVerify": string, "suggestedFix": string}>, "verificationSteps": string[] }. The "symbol" field inside riskyFiles is optional. No markdown, no preamble, just the JSON.`;
 
 /**
  * Strip common preambles (markdown fences, leading/trailing whitespace)
@@ -147,6 +155,9 @@ export class GroqProvider implements LLMProvider {
       riskLevel: parsed.riskLevel,
       riskFlags: parsed.riskFlags,
       focusAreas: parsed.focusAreas,
+      shipDecision: resolveShipDecision(parsed.shipDecision, parsed.riskLevel),
+      riskyFiles: normalizeRiskyFiles(parsed.riskyFiles),
+      verificationSteps: normalizeVerificationSteps(parsed.verificationSteps),
       tokensUsed,
       costUsdCents: 0,
       provider: 'groq',

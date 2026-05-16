@@ -1,5 +1,10 @@
 import OpenAI from 'openai';
 import { buildSystemPrompt, buildUserPrompt } from '@/lib/prompts/pr-analysis';
+import {
+  normalizeRiskyFiles,
+  normalizeVerificationSteps,
+  resolveShipDecision,
+} from '@/lib/llm/normalize';
 import type {
   AnalysisInput,
   AnalysisResult,
@@ -13,6 +18,9 @@ type DeepSeekAnalysisJson = {
   riskLevel: RiskLevel;
   riskFlags: string[];
   focusAreas: FocusArea[];
+  shipDecision?: unknown;
+  riskyFiles?: unknown;
+  verificationSteps?: unknown;
 };
 
 const MODEL = 'deepseek-v4-pro';
@@ -26,7 +34,7 @@ const OUTPUT_CENTS_PER_MTOK = 110; // $1.10 / 1M
 
 const JSON_SCHEMA_INSTRUCTION = `
 
-You MUST respond with valid JSON matching this exact schema: { "summary": string, "riskLevel": "low" | "medium" | "high", "riskFlags": string[], "focusAreas": Array<{"file": string, "lines": string, "reason": string}> }. Output ONLY the JSON object. No markdown code fences, no preamble, no explanation.`;
+You MUST respond with valid JSON matching this exact schema: { "summary": string, "riskLevel": "low" | "medium" | "high", "riskFlags": string[], "focusAreas": Array<{"file": string, "lines": string, "reason": string}>, "shipDecision": "safe to ship" | "ship after checking" | "do not ship until fixed", "riskyFiles": Array<{"file": string, "lineRange": string, "symbol": string, "whatChanged": string, "whyRisky": string, "howToVerify": string, "suggestedFix": string}>, "verificationSteps": string[] }. The "symbol" field inside riskyFiles is optional. Output ONLY the JSON object. No markdown code fences, no preamble, no explanation.`;
 
 /**
  * Strip common preambles (markdown fences, leading/trailing whitespace)
@@ -150,6 +158,9 @@ export class DeepSeekProvider implements LLMProvider {
       riskLevel: parsed.riskLevel,
       riskFlags: parsed.riskFlags,
       focusAreas: parsed.focusAreas,
+      shipDecision: resolveShipDecision(parsed.shipDecision, parsed.riskLevel),
+      riskyFiles: normalizeRiskyFiles(parsed.riskyFiles),
+      verificationSteps: normalizeVerificationSteps(parsed.verificationSteps),
       tokensUsed,
       costUsdCents,
       provider: 'deepseek',

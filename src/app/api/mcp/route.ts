@@ -13,11 +13,17 @@ export const maxDuration = 60;
  * MCP server for Senix.
  *
  * IDEs (Cursor, Claude Code, Windsurf, …) connect to this endpoint and
- * expose the `analyze_code_changes` tool to the developer's AI assistant.
- * The tool reuses the exact same pipeline as the GitHub bot — tree-sitter
- * structural diff + the shared LLM provider + the shared analysis prompt.
- * Only the input source differs: a PR diff for the bot, IDE-supplied file
- * contents here.
+ * expose the `review_changes` tool to the developer's AI assistant. The
+ * legacy name `analyze_code_changes` still works as an alias so older IDE
+ * configs keep functioning. The tool reuses the exact same pipeline as the
+ * GitHub bot — tree-sitter structural diff + the shared LLM provider + the
+ * shared analysis prompt. Only the input source differs: a PR diff for the
+ * bot, IDE-supplied file contents here.
+ *
+ * Unlike the short GitHub PR comment, the MCP tool returns a full shipping
+ * brief: a behavioral summary, the overall risk level, a ship decision,
+ * the risky files with line ranges and verification guidance, and a list
+ * of verification steps to run before shipping.
  *
  * The Model Context Protocol over HTTP is plain JSON-RPC 2.0. Rather than
  * adapt the stateful `@modelcontextprotocol/sdk` HTTP transport (built for
@@ -36,7 +42,7 @@ export const maxDuration = 60;
  *     "id": 2,
  *     "method": "tools/call",
  *     "params": {
- *       "name": "analyze_code_changes",
+ *       "name": "review_changes",
  *       "arguments": {
  *         "changes": [
  *           {
@@ -58,13 +64,16 @@ export const maxDuration = 60;
  *     "id": 2,
  *     "result": {
  *       "content": [
- *         { "type": "text", "text": "Risk level: HIGH\n\nOrder totals are now..." }
+ *         { "type": "text", "text": "Senix reviewed 1 changed file.\n\nOverall risk: HIGH\n..." }
  *       ],
  *       "structuredContent": {
  *         "summary": "...",
  *         "riskLevel": "high",
  *         "riskFlags": ["payment-logic-change"],
- *         "focusAreas": [ ... ]
+ *         "focusAreas": [ ... ],
+ *         "shipDecision": "do not ship until fixed",
+ *         "riskyFiles": [ ... ],
+ *         "verificationSteps": [ ... ]
  *       }
  *     }
  *   }
@@ -74,10 +83,14 @@ export const maxDuration = 60;
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_INFO = { name: 'senix', version: '1.0.0' };
 
+// Canonical tool name plus the legacy alias kept for older IDE configs.
+const TOOL_NAME = 'review_changes';
+const TOOL_ALIAS = 'analyze_code_changes';
+
 const TOOL_DEFINITION = {
-  name: 'analyze_code_changes',
+  name: TOOL_NAME,
   description:
-    'Analyze code changes and return a 3-sentence behavioral summary with risk level, detected risks, and focus areas. Use this before committing or pushing AI-generated code.',
+    'Use this tool whenever the user asks Senix to review code, check changes, review before commit, find risky code, inspect AI-generated code, or check a git diff. Returns a shipping brief with a behavioral summary, risk level, risky files with line ranges and verification steps, and a ship decision.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -200,24 +213,56 @@ function lineDelta(before: string, after: string): { additions: number; deletion
   };
 }
 
-/** Render the analysis as a readable text block for the IDE's chat panel. */
-function formatToolText(result: AnalysisResult): string {
-  const lines: string[] = [`Risk level: ${result.riskLevel.toUpperCase()}`, '', result.summary];
+/**
+ * Render the analysis as the human-readable shipping brief shown in the
+ * IDE's chat panel. The structured fields stay on `structuredContent`;
+ * this is the prose version a developer reads at a glance.
+ */
+function formatToolText(result: AnalysisResult, filesReviewed: number): string {
+  const fileWord = filesReviewed === 1 ? 'file' : 'files';
+  const lines: string[] = [
+    `Senix reviewed ${filesReviewed} changed ${fileWord}.`,
+    '',
+    `Overall risk: ${result.riskLevel.toUpperCase()}`,
+    '',
+    'Behavioral summary:',
+    result.summary,
+    '',
+    `Ship decision: ${result.shipDecision}`,
+    '',
+  ];
 
-  if (result.riskFlags.length > 0) {
-    lines.push('', `Detected risks: ${result.riskFlags.join(', ')}`);
+  if (result.riskyFiles.length > 0) {
+    lines.push('Risky files:');
+    result.riskyFiles.forEach((file, index) => {
+      const location = file.lineRange ? `${file.file}:${file.lineRange}` : file.file;
+      const heading = file.symbol ? `${location} (${file.symbol})` : location;
+      lines.push(`${index + 1}. ${heading}`);
+      lines.push(`   What changed: ${file.whatChanged}`);
+      lines.push(`   Why risky: ${file.whyRisky}`);
+      lines.push(`   How to verify: ${file.howToVerify}`);
+      lines.push(`   Suggested fix: ${file.suggestedFix}`);
+      lines.push('');
+    });
+    lines.pop(); // Drop the trailing blank line after the last risky file.
+  } else {
+    lines.push('No high-risk changes detected.');
   }
-  if (result.focusAreas.length > 0) {
-    lines.push('', 'Focus areas:');
-    for (const area of result.focusAreas) {
-      lines.push(`- ${area.file}:${area.lines} — ${area.reason}`);
-    }
+
+  if (result.verificationSteps.length > 0) {
+    lines.push('', 'Verification steps:');
+    result.verificationSteps.forEach((step, index) => {
+      lines.push(`${index + 1}. ${step}`);
+    });
   }
+
   return lines.join('\n');
 }
 
 /** Run the IDE-supplied changes through the shared analysis pipeline. */
-async function runAnalysis(args: Record<string, unknown>): Promise<AnalysisResult> {
+async function runAnalysis(
+  args: Record<string, unknown>
+): Promise<{ result: AnalysisResult; filesReviewed: number }> {
   const rawChanges = args.changes;
   if (!Array.isArray(rawChanges) || rawChanges.length === 0) {
     throw new Error('`changes` must be a non-empty array of file changes.');
@@ -250,7 +295,7 @@ async function runAnalysis(args: Record<string, unknown>): Promise<AnalysisResul
 
   const context = typeof args.context === 'string' && args.context.trim() ? args.context.trim() : null;
 
-  return getLLMProvider().analyzePR({
+  const result = await getLLMProvider().analyzePR({
     prMeta: {
       title: context ?? 'mcp-session',
       author: 'mcp-session',
@@ -260,6 +305,8 @@ async function runAnalysis(args: Record<string, unknown>): Promise<AnalysisResul
     },
     structuralDiff,
   });
+
+  return { result, filesReviewed: changes.length };
 }
 
 /** Dispatch a single JSON-RPC request to the matching MCP method. */
@@ -281,19 +328,23 @@ async function handleRpc(rpc: JsonRpcRequest): Promise<NextResponse> {
 
     case 'tools/call': {
       const name = rpc.params?.name;
-      if (name !== 'analyze_code_changes') {
+      // `analyze_code_changes` is the legacy alias; both route here.
+      if (name !== TOOL_NAME && name !== TOOL_ALIAS) {
         return rpcError(id, METHOD_NOT_FOUND, `Unknown tool: ${String(name)}`);
       }
       const args = (rpc.params?.arguments ?? {}) as Record<string, unknown>;
       try {
-        const result = await runAnalysis(args);
+        const { result, filesReviewed } = await runAnalysis(args);
         return rpcResult(id, {
-          content: [{ type: 'text', text: formatToolText(result) }],
+          content: [{ type: 'text', text: formatToolText(result, filesReviewed) }],
           structuredContent: {
             summary: result.summary,
             riskLevel: result.riskLevel,
             riskFlags: result.riskFlags,
             focusAreas: result.focusAreas,
+            shipDecision: result.shipDecision,
+            riskyFiles: result.riskyFiles,
+            verificationSteps: result.verificationSteps,
           },
         });
       } catch (err: unknown) {

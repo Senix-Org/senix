@@ -24,3 +24,9 @@ GitHub webhook → `/api/webhooks/github` → `handlePullRequest` upserts PR + a
 ## Conventions
 
 TypeScript strict mode · kebab-case filenames · `@/` aliases `src/`.
+# Project conventions for Claude Code
+
+Writing style:
+Do not use em-dashes or en-dashes in any generated text. Use commas, periods, 
+or parentheses instead. Write complete sentences with normal punctuation. 
+Use plain numbered lists, not bullets with dashes.
