@@ -10,6 +10,29 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Senix dashboard design tokens. Background layers, darkest to lightest. */
+  --color-base: #0a0a0a;
+  --color-surface: #111111;
+  --color-surface-raised: #1a1a1a;
+  --color-surface-border: #222222;
+
+  /* Text */
+  --color-primary: #f0f0f0;
+  --color-secondary: #888888;
+  --color-muted: #555555;
+
+  /* Accent (Senix green, used sparingly) */
+  --color-accent: #16a34a;
+  --color-accent-hover: #15803d;
+
+  /* Neutral action buttons */
+  --color-neutral-border: #333333;
+
+  /* Risk colors */
+  --color-risk-high: #dc2626;
+  --color-risk-medium: #d97706;
+  --color-risk-low: #16a34a;
 }
 
 html {
@@ -39,4 +62,77 @@ body {
     rgba(16, 185, 129, 0.04) 40%,
     transparent 70%
   );
+}
+
+/* ----------------------------------------------------------------------- */
+/* Dashboard shell: motion, scrollbars, and focus rings.                   */
+/* Everything below is scoped to .senix-app so the marketing site is       */
+/* left untouched.                                                         */
+/* ----------------------------------------------------------------------- */
+
+@keyframes senix-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes senix-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Page content fade-in. */
+.animate-fade-in {
+  animation: senix-fade-in 300ms ease-out both;
+}
+
+/* Incoming view (IDE setup) fades up into place. */
+.animate-fade-up {
+  animation: senix-fade-up 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-up {
+    animation: none;
+  }
+}
+
+/* Visible focus ring for keyboard navigation across the dashboard. */
+.senix-app :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Thin custom scrollbars, only visible while the area is hovered. */
+.senix-app *::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.senix-app *::-webkit-scrollbar-track {
+  background: var(--color-surface-raised);
+}
+
+.senix-app *::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.senix-app *:hover::-webkit-scrollbar-thumb {
+  background: var(--color-surface-border);
+}
+
+.senix-app {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-border) var(--color-surface-raised);
 }

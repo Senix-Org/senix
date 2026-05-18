@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { RevealItem, RevealStagger } from '@/components/reveal';
+import { ChevronDown } from 'lucide-react';
 import { AnalysisCard, type AnalysisCardData } from './analysis-card';
 
 const RISK_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
@@ -65,23 +65,21 @@ export function RecentAnalyses({
             { value: 'risk', label: 'Highest risk first' },
           ]}
         />
-        <span className="ml-auto text-xs text-zinc-500 tabular-nums">
+        <span className="ml-auto text-xs tabular-nums text-muted">
           {visible.length} of {analyses.length}
         </span>
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400 text-sm">
+        <p className="py-12 text-center text-sm text-secondary">
           No analyses match this filter.
-        </div>
+        </p>
       ) : (
-        <RevealStagger className="space-y-3" staggerMs={40}>
+        <div className="space-y-3">
           {visible.map((a) => (
-            <RevealItem key={a.id}>
-              <AnalysisCard analysis={a} />
-            </RevealItem>
+            <AnalysisCard key={a.id} analysis={a} />
           ))}
-        </RevealStagger>
+        </div>
       )}
     </div>
   );
@@ -101,19 +99,25 @@ function FilterSelect({
   options: SelectOption[];
 }): React.ReactElement {
   return (
-    <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
-      <span className="text-zinc-500">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-zinc-600 transition-colors cursor-pointer"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-zinc-900">
-            {o.label}
-          </option>
-        ))}
-      </select>
+    <label className="inline-flex items-center gap-2 text-xs text-secondary">
+      <span>{label}</span>
+      <span className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="cursor-pointer appearance-none rounded-lg border border-surface-border bg-surface-raised py-1.5 pl-3 pr-8 text-xs text-secondary transition-colors duration-150 hover:text-primary focus:outline-none"
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value} className="bg-surface-raised text-primary">
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={14}
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted"
+        />
+      </span>
     </label>
   );
 }

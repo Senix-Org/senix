@@ -1,16 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { AppNav } from '@/components/app-nav';
+import { DashboardSidebar } from '@/components/dashboard/sidebar';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-type SidebarInstallation = {
-  id: string;
-  account_login: string;
-  repoCount: number;
-};
 
 type AuthUserMeta = {
   avatar_url?: string;
@@ -20,8 +13,10 @@ type AuthUserMeta = {
 
 /**
  * Authenticated dashboard shell. Redirects unauthenticated visitors to
- * /login. Uses the focused AppNav (no marketing links) rather than the
- * public SiteNav.
+ * /login. Navigation lives entirely in the persistent left sidebar, so
+ * there is no top nav bar inside the dashboard. The content keeps a
+ * fixed left margin matching the collapsed rail; the sidebar floats over
+ * the content when it expands on hover, so the layout never shifts.
  */
 export default async function DashboardLayout({
   children,
@@ -34,58 +29,17 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  const installs = await loadInstallations(authData.user.id);
   const meta = (authData.user.user_metadata ?? {}) as AuthUserMeta;
-  const handle = meta.user_name ?? meta.preferred_username ?? authData.user.email ?? 'You';
+  const handle =
+    meta.user_name ?? meta.preferred_username ?? authData.user.email ?? 'You';
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <AppNav handle={handle} avatarUrl={meta.avatar_url} />
+    <div className="senix-app min-h-screen bg-base text-primary">
+      <DashboardSidebar handle={handle} avatarUrl={meta.avatar_url} />
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-10 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-10">
-        {installs.length > 0 && (
-          <aside className="hidden md:block">
-            <div className="text-xs uppercase tracking-[0.18em] text-zinc-500 mb-3">
-              Installations
-            </div>
-            <ul className="space-y-1.5">
-              {installs.map((i) => (
-                <li key={i.id} className="text-sm text-zinc-300">
-                  <span className="font-medium">{i.account_login}</span>
-                  <span className="text-zinc-500"> · {i.repoCount} repos</span>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        )}
-
-        <main className="min-w-0">{children}</main>
+      <div className="px-4 pb-8 pt-20 md:ml-16 md:p-8">
+        <main className="animate-fade-in mx-auto min-w-0 max-w-5xl">{children}</main>
       </div>
     </div>
   );
-}
-
-async function loadInstallations(authUserId: string): Promise<SidebarInstallation[]> {
-  const { data: userRow } = (await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('auth_user_id', authUserId)
-    .maybeSingle()) as unknown as { data: { id: string } | null };
-
-  if (!userRow) return [];
-
-  const { data: rows } = (await supabaseAdmin
-    .from('installations')
-    .select('id, account_login, repositories(count)')
-    .eq('installed_by_user_id', userRow.id)
-    .is('uninstalled_at', null)
-    .order('account_login', { ascending: true })) as unknown as {
-    data: Array<{ id: string; account_login: string; repositories: Array<{ count: number }> }> | null;
-  };
-
-  return (rows ?? []).map((r) => ({
-    id: r.id,
-    account_login: r.account_login,
-    repoCount: r.repositories?.[0]?.count ?? 0,
-  }));
 }

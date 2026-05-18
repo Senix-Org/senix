@@ -1,10 +1,6 @@
-import Link from 'next/link';
-import { GitBranch } from 'lucide-react';
+import { GitPullRequest } from 'lucide-react';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import RepoToggle from '@/components/repo-toggle';
-import { Reveal } from '@/components/reveal';
 import { RecentAnalyses } from '@/components/dashboard/recent-analyses';
-import { ManageTokens, type ManageTokenView } from '@/components/dashboard/manage-tokens';
 import type { AnalysisCardData } from '@/components/dashboard/analysis-card';
 
 export const dynamic = 'force-dynamic';
@@ -30,26 +26,18 @@ type RepoRow = {
   id: string;
   full_name: string;
   enabled: boolean;
-  installations: { account_login: string } | null;
-};
-
-type McpTokenRow = {
-  id: string;
-  name: string;
-  created_at: string;
-  last_used_at: string | null;
 };
 
 /**
- * Customer dashboard. Reads the signed-in user's recent analyses and
- * connected repos through the user-context Supabase client (so RLS
- * enforces ownership). The /dashboard layout has already bounced any
- * unauthenticated visitor to /login by the time we get here.
+ * Customer dashboard overview. Reads the signed-in user's recent
+ * analyses and connected repos through the user-context Supabase client
+ * (so RLS enforces ownership). The /dashboard layout has already bounced
+ * any unauthenticated visitor to /login by the time we get here.
  */
 export default async function DashboardPage(): Promise<React.ReactElement> {
   const supabase = await createServerSupabaseClient();
 
-  const [analysesResult, reposResult, tokensResult] = await Promise.all([
+  const [analysesResult, reposResult] = await Promise.all([
     supabase
       .from('analyses')
       .select(
@@ -63,22 +51,10 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
       .select('id, full_name, enabled, installations!inner(account_login, uninstalled_at)')
       .is('installations.uninstalled_at', null)
       .order('full_name', { ascending: true }),
-    supabase
-      .from('mcp_tokens')
-      .select('id, name, created_at, last_used_at')
-      .order('created_at', { ascending: false }),
   ]);
 
   const analyses = (analysesResult.data ?? []) as unknown as AnalysisRow[];
   const repos = (reposResult.data ?? []) as unknown as RepoRow[];
-  const tokenRows = (tokensResult.data ?? []) as unknown as McpTokenRow[];
-
-  const mcpTokens: ManageTokenView[] = tokenRows.map((t) => ({
-    id: t.id,
-    name: t.name,
-    createdAt: t.created_at,
-    lastUsedAt: t.last_used_at,
-  }));
 
   const enabledRepoCount = repos.filter((r) => r.enabled).length;
   const weeklyAnalysisCount = analyses.filter(
@@ -97,109 +73,47 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
   }));
 
   return (
-    <div className="space-y-12">
-      <Reveal>
-        <section>
-          <span className="text-xs font-mono uppercase tracking-[0.2em] text-green-500/80">
-            Dashboard
-          </span>
-          <h1 className="mt-3 text-3xl sm:text-4xl font-bold tracking-[-0.02em]">
-            Your reviews at a glance
-          </h1>
-          <p className="mt-3 text-zinc-400">
-            <span className="text-zinc-200 tabular-nums">{enabledRepoCount}</span>{' '}
-            {enabledRepoCount === 1 ? 'repo' : 'repos'} connected ·{' '}
-            <span className="text-zinc-200 tabular-nums">{weeklyAnalysisCount}</span>{' '}
-            {weeklyAnalysisCount === 1 ? 'analysis' : 'analyses'} this week
-          </p>
-        </section>
-      </Reveal>
+    <div>
+      <header>
+        <h1 className="text-3xl font-semibold text-primary">Your reviews at a glance</h1>
+        <p className="mt-2 text-sm text-secondary">
+          {enabledRepoCount} {enabledRepoCount === 1 ? 'repo' : 'repos'} connected,{' '}
+          {weeklyAnalysisCount} {weeklyAnalysisCount === 1 ? 'analysis' : 'analyses'} this
+          week
+        </p>
+      </header>
 
-      <Reveal delay={0.05}>
-        <section>
-          <SectionHeading title="Recent analyses" />
-          {analyses.length === 0 ? (
-            <EmptyCard>
-              No analyses yet. Open a PR in a connected repo and Senix will post a review summary
-              within ~30 seconds. We&apos;ll show it here as soon as it&apos;s ready.
-            </EmptyCard>
-          ) : (
-            <RecentAnalyses analyses={analysisCards} />
-          )}
-        </section>
-      </Reveal>
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Total reviews" value={analyses.length} />
+        <StatCard label="This week" value={weeklyAnalysisCount} />
+        <StatCard label="Repos connected" value={enabledRepoCount} />
+      </div>
 
-      <Reveal delay={0.1}>
-        <section>
-          <SectionHeading title="Connected repos" />
-          <p className="text-sm text-zinc-400 mt-1 mb-4">
-            Toggle off any repo you don&apos;t want Senix reviewing. Disabled repos skip all
-            analyses.
-          </p>
-          {repos.length === 0 ? (
-            <EmptyCard>
-              No repos connected yet.{' '}
-              <Link
-                href="https://github.com/apps/senix-bot/installations/new"
-                className="text-green-500 hover:text-green-400 transition-colors underline-offset-2 hover:underline"
-              >
-                Install the GitHub App →
-              </Link>{' '}
-              to get started. Pick the repos you want reviewed.
-            </EmptyCard>
-          ) : (
-            <ul className="rounded-xl border border-zinc-800 bg-zinc-900/40 divide-y divide-zinc-800 overflow-hidden">
-              {repos.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between px-5 py-4 hover:bg-zinc-900/60 transition-colors"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <GitBranch
-                      size={16}
-                      strokeWidth={1.5}
-                      className="mt-1 text-zinc-500 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-zinc-100 font-medium truncate">{r.full_name}</div>
-                      {r.installations?.account_login && (
-                        <div className="text-xs text-zinc-500 mt-0.5">
-                          {r.installations.account_login}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <RepoToggle repoId={r.id} enabled={r.enabled} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </Reveal>
-
-      <Reveal delay={0.15}>
-        <section>
-          <SectionHeading title="Manage tokens" />
-          <p className="text-sm text-zinc-400 mt-1 mb-4">
-            MCP tokens connect Senix to your IDE. Revoke any token you no longer use.
-          </p>
-          <ManageTokens tokens={mcpTokens} />
-        </section>
-      </Reveal>
+      <section className="mt-8">
+        <h2 className="mb-4 text-lg font-semibold text-primary">Recent analyses</h2>
+        {analyses.length === 0 ? <AnalysesEmptyState /> : <RecentAnalyses analyses={analysisCards} />}
+      </section>
     </div>
   );
 }
 
-function SectionHeading({ title }: { title: string }): React.ReactElement {
+function StatCard({ label, value }: { label: string; value: number }): React.ReactElement {
   return (
-    <h2 className="text-xl font-semibold tracking-tight text-zinc-100 mb-4">{title}</h2>
+    <div className="rounded-xl border border-surface-border bg-surface p-6">
+      <div className="text-2xl font-bold tabular-nums text-primary">{value}</div>
+      <div className="mt-1 text-xs uppercase tracking-wider text-secondary">{label}</div>
+    </div>
   );
 }
 
-function EmptyCard({ children }: { children: React.ReactNode }): React.ReactElement {
+function AnalysesEmptyState(): React.ReactElement {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400 text-sm leading-relaxed">
-      {children}
+    <div className="flex flex-col items-center py-12 text-center">
+      <GitPullRequest size={32} strokeWidth={1.5} className="text-muted" />
+      <p className="mt-4 text-sm font-medium text-primary">No reviews yet</p>
+      <p className="mt-1 max-w-xs text-sm text-secondary">
+        Open a pull request in a connected repo and Senix will review it within 30 seconds.
+      </p>
     </div>
   );
 }

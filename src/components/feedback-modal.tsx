@@ -39,7 +39,7 @@ export function FeedbackTrigger(): React.ReactElement {
   );
 }
 
-function FeedbackModal({ onClose }: { onClose: () => void }): React.ReactElement {
+export function FeedbackModal({ onClose }: { onClose: () => void }): React.ReactElement {
   const [category, setCategory] = useState<Category>('bug');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);

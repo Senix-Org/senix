@@ -1,18 +1,13 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/relative-time';
 import { GithubMark } from './github-mark';
 
 const RISK_BADGE: Record<string, string> = {
-  low: 'text-green-400 bg-green-950/40 border-green-900/50',
-  medium: 'text-yellow-400 bg-yellow-950/40 border-yellow-900/50',
-  high: 'text-red-400 bg-red-950/40 border-red-900/50',
+  low: 'text-risk-low bg-risk-low/10',
+  medium: 'text-risk-medium bg-risk-medium/10',
+  high: 'text-risk-high bg-risk-high/10',
 };
-
-const SUMMARY_LIMIT = 400;
 
 export type AnalysisCardData = {
   id: string;
@@ -26,61 +21,44 @@ export type AnalysisCardData = {
 };
 
 export function AnalysisCard({ analysis }: { analysis: AnalysisCardData }): React.ReactElement {
-  const [expanded, setExpanded] = useState(true);
   const summary = analysis.summary ?? '';
-  const isLong = summary.length > SUMMARY_LIMIT;
-  const showCollapsed = isLong && !expanded;
-
+  const riskLabel = analysis.risk_level ? analysis.risk_level : 'unknown';
   const riskBadgeClass =
     (analysis.risk_level && RISK_BADGE[analysis.risk_level]) ??
-    'text-zinc-400 bg-zinc-800 border-zinc-700';
+    'text-muted bg-surface-raised';
+  const created = new Date(analysis.created_at);
 
   return (
-    <li className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 hover:border-zinc-700 hover:bg-zinc-900/60 transition-colors">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-sm font-mono text-zinc-400">
-            <span className="truncate">{analysis.repo_name}</span>
-            {analysis.pr_number !== null && (
-              <span className="text-zinc-500">#{analysis.pr_number}</span>
-            )}
-          </div>
-          <h3 className="mt-1 text-lg font-medium text-zinc-100 leading-snug">
-            {analysis.pr_title}
-          </h3>
+    <div className="group relative rounded-xl border border-surface-border bg-surface p-6 transition-all duration-150 hover:border-neutral-border hover:bg-surface-raised">
+      <span
+        className={`absolute right-6 top-6 rounded-full px-2.5 py-1 text-xs font-medium uppercase tracking-wider ${riskBadgeClass}`}
+      >
+        {riskLabel}
+      </span>
+
+      <div className="pr-20">
+        <div className="flex items-center gap-2 text-sm text-secondary">
+          <span className="truncate font-mono">{analysis.repo_name}</span>
+          {analysis.pr_number !== null && (
+            <span className="text-muted">#{analysis.pr_number}</span>
+          )}
         </div>
-        {analysis.risk_level && (
-          <span
-            className={`shrink-0 text-[10px] tracking-wider rounded-full px-2.5 py-1 font-bold uppercase border ${riskBadgeClass}`}
-          >
-            {analysis.risk_level}
-          </span>
-        )}
+        <h3 className="mt-1 text-base font-semibold leading-snug text-primary">
+          {analysis.pr_title}
+        </h3>
       </div>
 
       {summary && (
-        <div className="mt-3">
-          <div className={`relative ${showCollapsed ? 'max-h-24 overflow-hidden' : ''}`}>
-            <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">{summary}</p>
-            {showCollapsed && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-zinc-900/90 to-transparent" />
-            )}
-          </div>
-          {isLong && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-2 text-xs font-medium text-green-400 hover:text-green-300 transition-colors"
-            >
-              {expanded ? 'Show less' : 'Show more'}
-            </button>
-          )}
-        </div>
+        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-secondary">{summary}</p>
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs text-zinc-500">
-          {formatRelativeTime(new Date(analysis.created_at))}
+        <span
+          className="text-xs text-muted"
+          title={created.toISOString()}
+          suppressHydrationWarning
+        >
+          {formatRelativeTime(created)}
         </span>
         <div className="flex items-center gap-2">
           {analysis.github_comment_url && (
@@ -88,7 +66,7 @@ export function AnalysisCard({ analysis }: { analysis: AnalysisCardData }): Reac
               href={analysis.github_comment_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-transparent border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface-raised px-2 py-1.5 text-sm text-secondary transition-colors duration-150 hover:text-primary"
             >
               <GithubMark size={13} />
               View on GitHub
@@ -96,13 +74,13 @@ export function AnalysisCard({ analysis }: { analysis: AnalysisCardData }): Reac
           )}
           <Link
             href={`/dashboard/analysis/${analysis.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-xs font-medium transition-colors"
+            className="inline-flex items-center gap-1 rounded-lg border border-surface-border bg-surface-raised px-2 py-1.5 text-sm text-secondary transition-colors duration-150 hover:border-neutral-border hover:text-primary"
           >
             Details
-            <ArrowRight size={13} />
+            <ChevronRight size={14} />
           </Link>
         </div>
       </div>
-    </li>
+    </div>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Copy, KeyRound, Plus, TriangleAlert, X } from 'lucide-react';
+import { Check, Copy, Plus, TriangleAlert, X } from 'lucide-react';
+import { formatRelativeTime } from '@/lib/relative-time';
 import { generateMcpToken, revokeMcpToken } from '@/app/dashboard/mcp-tokens/actions';
 
 export type McpTokenView = {
@@ -13,11 +14,13 @@ export type McpTokenView = {
   revokedAt: string | null;
 };
 
-const MASKED = 'sk_mcp_••••••••••••••••';
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString(undefined, {
+/**
+ * Format the created timestamp as an absolute date, e.g. "Nov 15, 2026".
+ * A fixed locale keeps the server and client render identical so the
+ * date does not trip React's hydration check.
+ */
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -25,9 +28,9 @@ function formatDate(iso: string | null): string {
 }
 
 /**
- * Interactive MCP token list. Renders existing tokens with a revoke
- * action and a "Generate new token" modal. The plaintext token is shown
- * exactly once, immediately after generation.
+ * Interactive MCP token list. Renders existing tokens as cards with a
+ * quiet revoke action and a "Generate token" modal. The plaintext token
+ * is shown exactly once, immediately after generation.
  */
 export function McpTokenManager({
   tokens,
@@ -38,28 +41,38 @@ export function McpTokenManager({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <h2 className="text-lg font-semibold text-zinc-100">Your tokens</h2>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-green-500 hover:bg-green-400 px-3 py-1.5 text-sm font-medium text-zinc-950 transition-colors"
-        >
-          <Plus size={15} strokeWidth={2.5} />
-          Generate new token
-        </button>
-      </div>
-
       {tokens.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-sm text-zinc-400 leading-relaxed">
-          No tokens yet. Generate one to connect Senix to your IDE.
+        <div className="flex flex-col items-center py-12 text-center">
+          <p className="max-w-xs text-sm text-secondary">
+            No tokens yet. Generate one to connect your IDE.
+          </p>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-neutral-border bg-surface-raised px-3 py-2 text-sm font-medium text-primary transition-colors duration-150 hover:bg-surface-border"
+          >
+            <Plus size={15} strokeWidth={2.25} />
+            Generate token
+          </button>
         </div>
       ) : (
-        <ul className="rounded-xl border border-zinc-800 bg-zinc-900/40 divide-y divide-zinc-800 overflow-hidden">
-          {tokens.map((token) => (
-            <TokenRow key={token.id} token={token} />
-          ))}
-        </ul>
+        <>
+          <div className="mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-border bg-surface-raised px-3 py-2 text-sm font-medium text-primary transition-colors duration-150 hover:bg-surface-border"
+            >
+              <Plus size={15} strokeWidth={2.25} />
+              Generate token
+            </button>
+          </div>
+          <div className="space-y-3">
+            {tokens.map((token) => (
+              <TokenRow key={token.id} token={token} />
+            ))}
+          </div>
+        </>
       )}
 
       {modalOpen && <GenerateModal onClose={() => setModalOpen(false)} />}
@@ -72,6 +85,10 @@ function TokenRow({ token }: { token: McpTokenView }): React.ReactElement {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const revoked = Boolean(token.revokedAt);
+
+  const lastUsed = token.lastUsedAt
+    ? formatRelativeTime(new Date(token.lastUsedAt))
+    : 'never';
 
   async function onRevoke(): Promise<void> {
     setBusy(true);
@@ -86,36 +103,36 @@ function TokenRow({ token }: { token: McpTokenView }): React.ReactElement {
   }
 
   return (
-    <li className="flex items-center justify-between gap-4 px-5 py-4">
-      <div className="flex items-start gap-3 min-w-0">
-        <KeyRound size={16} strokeWidth={1.5} className="mt-1 text-zinc-500 shrink-0" />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-100 font-medium truncate">{token.name}</span>
-            {revoked && (
-              <span className="text-[10px] font-medium uppercase tracking-wider rounded-full bg-zinc-800 text-zinc-400 px-2 py-0.5">
-                Revoked
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 font-mono text-xs text-zinc-500">{MASKED}</div>
-          <div className="mt-1 text-xs text-zinc-500">
-            Created {formatDate(token.createdAt)} · Last used {formatDate(token.lastUsedAt)}
-          </div>
-          {error && <div className="mt-1 text-xs text-red-400">{error}</div>}
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-surface-border bg-surface p-5">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium text-primary">{token.name}</span>
+          {revoked && (
+            <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted">
+              Revoked
+            </span>
+          )}
         </div>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-secondary">
+          <span suppressHydrationWarning>Created {formatDate(token.createdAt)}</span>
+          <span className="text-muted">·</span>
+          <span suppressHydrationWarning title={token.lastUsedAt ?? undefined}>
+            Last used {lastUsed}
+          </span>
+        </div>
+        {error && <div className="mt-1 text-xs text-risk-high">{error}</div>}
       </div>
       {!revoked && (
         <button
           type="button"
           onClick={onRevoke}
           disabled={busy}
-          className="shrink-0 rounded-md border border-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:border-red-900/60 hover:text-red-300 disabled:opacity-50 transition-colors"
+          className="shrink-0 text-xs text-muted transition-colors duration-150 hover:text-risk-high disabled:opacity-50"
         >
-          {busy ? 'Revoking…' : 'Revoke'}
+          {busy ? 'Revoking' : 'Revoke'}
         </button>
       )}
-    </li>
+    </div>
   );
 }
 
@@ -169,7 +186,7 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Could not copy — select the token and copy manually.');
+      setError('Could not copy. Select the token and copy manually.');
     }
   }
 
@@ -178,22 +195,22 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
       role="dialog"
       aria-modal="true"
       aria-labelledby="mcp-token-heading"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={close}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/40"
+        className="w-full max-w-md rounded-xl border border-surface-border bg-surface shadow-2xl shadow-black/40"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 p-6 pb-0">
-          <h2 id="mcp-token-heading" className="text-lg font-semibold text-zinc-100">
+          <h2 id="mcp-token-heading" className="text-lg font-semibold text-primary">
             {token ? 'Token generated' : 'Generate MCP token'}
           </h2>
           <button
             type="button"
             onClick={close}
             aria-label="Close"
-            className="p-1 -mr-1 -mt-1 text-zinc-500 hover:text-zinc-200 rounded transition-colors"
+            className="-mr-1 -mt-1 rounded p-1 text-secondary transition-colors hover:text-primary"
           >
             <X size={18} />
           </button>
@@ -201,29 +218,29 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
 
         {token ? (
           <div className="p-6 pt-4">
-            <div className="flex items-start gap-2 rounded-md border border-amber-900/40 bg-amber-950/30 px-3 py-2.5 text-xs text-amber-200">
+            <div className="flex items-start gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/10 px-3 py-2.5 text-xs text-risk-medium">
               <TriangleAlert size={15} className="mt-0.5 shrink-0" />
-              <span>This is the only time you&apos;ll see this token. Copy it now.</span>
+              <span>This is the only time this token is shown. Copy it now.</span>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <code className="flex-1 min-w-0 truncate rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-sm text-green-400">
+              <code className="min-w-0 flex-1 truncate rounded-lg border border-surface-border bg-surface-raised px-3 py-2 font-mono text-sm text-primary">
                 {token}
               </code>
               <button
                 type="button"
                 onClick={onCopy}
-                className="inline-flex items-center gap-1.5 shrink-0 rounded-md border border-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-neutral-border bg-surface-raised px-3 py-2 text-sm text-secondary transition-colors hover:text-primary"
               >
-                {copied ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
+                {copied ? <Check size={15} className="text-accent" /> : <Copy size={15} />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-3 text-xs text-risk-high">{error}</p>}
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
                 onClick={close}
-                className="rounded-md bg-green-500 hover:bg-green-400 px-4 py-1.5 text-sm font-medium text-zinc-950 transition-colors"
+                className="rounded-lg border border-neutral-border bg-surface-raised px-4 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-border"
               >
                 Done
               </button>
@@ -231,22 +248,22 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
           </div>
         ) : (
           <form onSubmit={onGenerate} className="p-6 pt-4">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-secondary">
               Give the token a name so you can recognize it later.
             </p>
             <label className="mt-4 block">
-              <span className="text-xs uppercase tracking-wider text-zinc-500">Token name</span>
+              <span className="text-xs uppercase tracking-wider text-muted">Token name</span>
               <input
                 ref={inputRef}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value.slice(0, 60))}
                 placeholder="Cursor on my laptop"
-                className="mt-1.5 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/30"
+                className="mt-1.5 w-full rounded-lg border border-surface-border bg-surface-raised px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-accent/50 focus:outline-none"
               />
             </label>
             {error && (
-              <div className="mt-4 rounded-md border border-red-900/40 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+              <div className="mt-4 rounded-lg border border-risk-high/30 bg-risk-high/10 px-3 py-2 text-xs text-risk-high">
                 {error}
               </div>
             )}
@@ -255,16 +272,16 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
                 type="button"
                 onClick={close}
                 disabled={busy}
-                className="px-3 py-1.5 rounded-md text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/60 disabled:opacity-50 transition-colors"
+                className="rounded-lg px-3 py-1.5 text-sm text-secondary transition-colors hover:text-primary disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy || name.trim().length < 2}
-                className="px-4 py-1.5 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {busy ? 'Generating…' : 'Generate'}
+                {busy ? 'Generating' : 'Generate'}
               </button>
             </div>
           </form>

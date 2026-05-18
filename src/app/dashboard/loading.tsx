@@ -1,44 +1,40 @@
 /**
  * Dashboard skeleton shown while the page's server data fetches resolve.
- * Mirrors the real dashboard layout (header summary + analyses list + repo
- * list) so the layout doesn't shift when content streams in.
+ * Mirrors the real overview layout (heading, stats row, analyses list)
+ * so the layout does not shift when content streams in.
  */
 export default function DashboardLoading(): React.ReactElement {
   return (
-    <div className="space-y-10 animate-pulse">
-      <section>
-        <div className="h-8 w-40 bg-zinc-800/70 rounded-md" />
-        <div className="mt-3 h-4 w-72 bg-zinc-800/40 rounded" />
-      </section>
+    <div className="animate-pulse">
+      <div className="h-9 w-72 rounded-md bg-surface-raised" />
+      <div className="mt-2 h-4 w-60 rounded bg-surface-raised/60" />
 
-      <section>
-        <div className="h-5 w-32 bg-zinc-800/60 rounded mb-4" />
-        <ul className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <li
-              key={i}
-              className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 space-y-3"
-            >
-              <div className="h-3 w-1/3 bg-zinc-800/60 rounded" />
-              <div className="h-4 w-2/3 bg-zinc-800/70 rounded" />
-              <div className="h-3 w-full bg-zinc-800/40 rounded" />
-              <div className="h-3 w-5/6 bg-zinc-800/40 rounded" />
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-surface-border bg-surface p-6"
+          >
+            <div className="h-7 w-12 rounded bg-surface-raised" />
+            <div className="mt-2 h-3 w-24 rounded bg-surface-raised/60" />
+          </div>
+        ))}
+      </div>
 
-      <section>
-        <div className="h-5 w-40 bg-zinc-800/60 rounded mb-4" />
-        <ul className="rounded-lg border border-zinc-800 bg-zinc-900/40 divide-y divide-zinc-800">
-          {[0, 1].map((i) => (
-            <li key={i} className="flex items-center justify-between px-4 py-3">
-              <div className="h-4 w-1/3 bg-zinc-800/60 rounded" />
-              <div className="h-5 w-10 bg-zinc-800/70 rounded-full" />
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="mt-8 h-5 w-36 rounded bg-surface-raised" />
+      <div className="mt-4 space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="space-y-3 rounded-xl border border-surface-border bg-surface p-6"
+          >
+            <div className="h-3 w-1/3 rounded bg-surface-raised/60" />
+            <div className="h-4 w-2/3 rounded bg-surface-raised" />
+            <div className="h-3 w-full rounded bg-surface-raised/40" />
+            <div className="h-3 w-5/6 rounded bg-surface-raised/40" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
