@@ -1,312 +1,300 @@
-You are working on Senix, a developer tool dashboard built with Next.js 
-and Tailwind CSS. The dashboard currently works correctly. You are not 
-changing any functionality, data fetching, API calls, or business logic. 
-This is a pure UI and design upgrade.
+You are working on Senix, a code review tool built with Next.js, 
+Tailwind CSS, and Supabase. You are implementing real pricing tiers, 
+rate limiting, and Whop payment integration.
 
 WRITING STYLE RULES
 Do not use em-dashes or en-dashes. Use commas, periods, or parentheses 
 instead. Write complete sentences with normal punctuation. Do not use 
 bullet lists with dashes in UI copy. Keep all UI text clear and direct.
 
-REFERENCE FEEL (do not copy colors, copy the feeling)
-Study how Linear, Vercel dashboard, and Resend approach their dashboards:
-tight typographic hierarchy, generous whitespace, a persistent left 
-sidebar with icon-labeled sections, muted secondary text, subtle card 
-depth, and primary actions that are weighted without being loud. That 
-is the standard to match.
+CONTEXT
+The current Senix users table has these columns:
+- id (uuid)
+- auth_user_id (uuid)
+- github_username (text)
+- github_user_id (bigint)
+- email (text)
+- created_at (timestamp with time zone)
 
-DESIGN TOKENS
-Define these as Tailwind CSS variables or a constants file and use them 
-consistently everywhere. Do not hardcode colors inline.
+There is no plan column yet. There is no rate limiting. Anyone who 
+signs up gets unlimited everything. That changes with this build.
 
-Background layers (darkest to lightest):
-- base: #0a0a0a (page background)
-- surface: #111111 (cards, panels)
-- surface-raised: #1a1a1a (hover states, code blocks, input backgrounds)
-- surface-border: #222222 (card borders, dividers)
+WHOP CREDENTIALS (use these as environment variable names)
+- WHOP_API_KEY (value already set)
+- WHOP_WEBHOOK_SECRET (value already set)
+- WHOP_STARTER_PRODUCT_ID = prod_2mMPi5Lwhvmdn
+- WHOP_TEAM_PRODUCT_ID = prod_gVtESTLqdLTRD
+- WHOP_PRO_PRODUCT_ID = prod_8vnwEeSVSw2de
 
-Text:
-- text-primary: #f0f0f0 (headings, primary labels)
-- text-secondary: #888888 (meta text, timestamps, subtitles)
-- text-muted: #555555 (placeholder text, disabled states)
+PRICING TIERS
+Four tiers. These are the source of truth for the entire implementation.
 
-Accent (use sparingly, only for the Senix brand and one primary CTA per page):
-- accent: #16a34a (the existing Senix green, keep it but use it less)
-- accent-hover: #15803d
-- accent-subtle: #16a34a1a (10 percent opacity green for badge backgrounds)
+Free:
+- Price: $0, no payment required
+- Repos: 1
+- Reviews per month: 30 (PR reviews and MCP reviews combined)
+- Support: Community
+- Trial: None, permanent free
 
-Neutral actions (buttons that are not the primary CTA):
-- neutral-button-bg: #1a1a1a
-- neutral-button-border: #333333
-- neutral-button-hover: #222222
+Starter:
+- Price: $18/month
+- Repos: 3
+- Reviews per month: 200
+- Support: Community
+- Trial: 14 days free
 
-Risk colors (keep these, just refine the shading):
-- risk-high: #dc2626 text on #dc26261a background
-- risk-medium: #d97706 text on #d977061a background
-- risk-low: #16a34a text on #16a34a1a background
+Team:
+- Price: $79/month
+- Repos: 15
+- Reviews per month: 1000
+- Support: Email, 48 hour response
+- Trial: 14 days free
 
-LAYOUT: REPLACE THE TOP NAV WITH A LEFT SIDEBAR
+Pro:
+- Price: $199/month
+- Repos: Unlimited (store as -1 in the database)
+- Reviews per month: 5000
+- Support: Priority, 24 hour response
+- Trial: 14 days free
 
-Remove the current top navigation bar inside the dashboard layout 
-(Dashboard, Connect IDE links). Replace it with a fixed left sidebar 
-that is 240px wide on desktop and collapses to a slide-in drawer on 
-mobile (toggle with a hamburger icon in a slim top bar on mobile).
+DATABASE MIGRATIONS
+Create a new migration file at supabase/migrations/008_pricing.sql.
+Do not run it. The operator will run it manually.
 
-The sidebar contains from top to bottom:
+Add these columns to the users table:
+- plan: text not null default 'free' 
+  (values: 'free', 'starter', 'team', 'pro')
+- plan_status: text not null default 'active' 
+  (values: 'active', 'trialing', 'cancelled', 'past_due')
+- trial_ends_at: timestamp with time zone nullable
+- plan_expires_at: timestamp with time zone nullable
+- whop_membership_id: text nullable (the Whop membership ID for 
+  this user's subscription, used to verify and manage their plan)
+- pr_reviews_this_month: integer not null default 0
+- mcp_reviews_this_month: integer not null default 0
+- reviews_reset_at: timestamp with time zone not null 
+  default date_trunc('month', now())
+- repos_connected: integer not null default 0
 
-1. Logo section (top, 64px tall): the Senix logo and wordmark, same 
-   as currently used. Below it, a thin border separator.
+Also create a new table called plan_events to log every plan change:
+- id: uuid primary key default gen_random_uuid()
+- user_id: uuid references users(id)
+- event_type: text (values: 'upgraded', 'downgraded', 'trial_started', 
+  'trial_ended', 'cancelled', 'reactivated', 'payment_failed')
+- from_plan: text nullable
+- to_plan: text nullable
+- whop_event_id: text nullable
+- created_at: timestamp with time zone default now()
 
-2. Navigation section: icon plus label for each item. Use lucide-react 
-   icons. Items in order:
-   - LayoutDashboard icon, label "Overview", links to /dashboard
-   - GitPullRequest icon, label "Reviews", links to /dashboard/reviews 
-     (this page does not exist yet, just add the nav item pointing there, 
-     show a "Coming soon" placeholder if visited)
-   - Plug icon, label "Connect IDE", links to /dashboard/connect
-   - Key icon, label "Tokens", links to /dashboard/tokens (move the 
-     manage tokens section to its own page at this route, remove it 
-     from the main dashboard page)
-   - BookOpen icon, label "Docs", links to /docs/troubleshooting, 
-     opens in a new tab
+PLAN ENFORCEMENT LOGIC
+Create src/lib/plan-limits.ts. This is the single source of truth 
+for plan limits and enforcement. Export these:
 
-3. Bottom section (pinned to bottom of sidebar): 
-   - User avatar (existing avatar component), username, and a small 
-     caret or settings icon
-   - Below that: a "Feedback" link with MessageSquare icon
-   - Below that: a "Sign out" link with LogOut icon
+1. A PLAN_LIMITS constant object:
+const PLAN_LIMITS = {
+  free:    { repos: 1,  reviews: 30,   label: 'Free' },
+  starter: { repos: 3,  reviews: 200,  label: 'Starter' },
+  team:    { repos: 15, reviews: 1000, label: 'Team' },
+  pro:     { repos: -1, reviews: 5000, label: 'Pro' },
+}
 
-Active state: the current page nav item has a white text label, 
-accent-colored left border (2px solid accent), and surface-raised 
-background. Inactive items have text-secondary labels that brighten 
-to text-primary on hover with surface-raised background. Transition 
-all hover states with duration-150.
+2. A getUserPlan(userId) async function that:
+   - Queries the users table for the user's plan, plan_status, 
+     trial_ends_at, pr_reviews_this_month, mcp_reviews_this_month, 
+     reviews_reset_at, and repos_connected
+   - Checks if reviews_reset_at is in a past month. If yes, 
+     resets pr_reviews_this_month and mcp_reviews_this_month to 0 
+     and updates reviews_reset_at to the start of the current month
+   - Returns the user's plan data including total reviews used 
+     (pr_reviews_this_month + mcp_reviews_this_month) and limit
 
-The main content area sits to the right of the sidebar. On desktop it 
-has a left margin of 240px. Add 32px padding on all sides of the 
-content area. Do not add a second top nav bar inside the dashboard. 
-The sidebar is the only navigation.
+3. A checkReviewLimit(userId, source) async function where source 
+   is 'pr' or 'mcp':
+   - Calls getUserPlan
+   - If the user is on a cancelled or past_due plan with no active 
+     trial, treat them as free tier
+   - Compares total reviews used against their plan limit
+   - If at or over the limit, return { allowed: false, reason: string }
+   - If under the limit, increment the appropriate counter 
+     (pr_reviews_this_month or mcp_reviews_this_month) and return 
+     { allowed: true }
+   - Use a Supabase UPDATE with a WHERE clause that checks the 
+     current count has not changed since the read (optimistic 
+     concurrency to prevent double-counting)
 
-MAIN DASHBOARD PAGE (/dashboard)
+4. A checkRepoLimit(userId) async function:
+   - Gets the user's repos_connected count and plan
+   - If repos_connected >= plan limit (and plan is not pro), 
+     return { allowed: false, reason: string }
+   - If allowed, return { allowed: true }
 
-Remove: the "DASHBOARD" eyebrow label above the heading.
+WEBHOOK HANDLER
+Create src/app/api/webhooks/whop/route.ts.
 
-Heading: keep "Your reviews at a glance" but increase to text-3xl 
-font-semibold text-primary. Below it show "3 repos connected, 3 
-analyses this week" in text-secondary text-sm. Add 8px gap between 
-heading and meta line.
+This is a POST endpoint. It receives webhook events from Whop.
 
-Add a stats row below the heading with 32px top margin. Three stat 
-cards in a row (on mobile stack to one column). Each card is a surface 
-background, surface-border border, rounded-xl, 24px padding. Contents:
-- Card 1: "Total reviews" with the count in text-2xl font-bold 
-  text-primary, label in text-secondary text-xs uppercase tracking-wider
-- Card 2: "This week" same treatment
-- Card 3: "Repos connected" same treatment
-Do not add any icons to these cards. Numbers speak for themselves.
+Security: verify every incoming request by checking the 
+x-whop-signature header. Whop signs webhooks using HMAC-SHA256 
+with the WHOP_WEBHOOK_SECRET. Verify the signature before 
+processing any event. If verification fails, return 401.
 
-Recent analyses section:
-- Section heading "Recent analyses" in text-lg font-semibold 
-  text-primary, 32px top margin
-- Keep the Risk and Sort filter dropdowns but restyle them: surface-raised 
-  background, surface-border border, text-secondary text, rounded-lg, 
-  no default browser arrow, use a ChevronDown icon from lucide-react
-- Analysis cards: surface background, surface-border border, rounded-xl, 
-  24px padding, no bullet point (remove the bullet). On hover, border 
-  color transitions to #333333 and background to surface-raised. 
-  Transition duration-150.
-- Inside each card: repo name and PR number in text-secondary text-sm 
-  at the top. PR title in text-primary font-semibold text-base below 
-  it with 4px gap. Summary text in text-secondary text-sm with 8px 
-  top margin, clamped to 2 lines with line-clamp-2. Bottom row: 
-  timestamp on the left in text-muted text-xs, "View on GitHub" and 
-  "Details" buttons on the right.
-- Risk badge: pill shaped, rounded-full, text-xs font-medium, 
-  uppercase tracking-wider. Use the risk colors defined above. 
-  Position it in the top right of the card, not inline with the title. 
-  It should float to the top-right corner of the card using absolute 
-  positioning or flex justify-between on the top row.
-- "View on GitHub" button: neutral-button style (surface-raised 
-  background, surface-border border), text-secondary text, text-sm, 
-  rounded-lg, 8px horizontal padding, 6px vertical padding. On hover 
-  text brightens to text-primary.
-- "Details" button: same neutral-button style but with a slightly 
-  brighter border on hover. Do not use accent green for this button.
+Handle these four events:
 
-Empty state for analyses: replace the current text-only card with a 
-centered empty state. Icon: GitPullRequest from lucide-react in 
-text-muted, size 32px. Below it: "No reviews yet" in text-primary 
-text-sm font-medium. Below that: "Open a pull request in a connected 
-repo and Senix will review it within 30 seconds." in text-secondary 
-text-sm text-center, max-w-xs. No card border around the empty state, 
-just centered content with 48px vertical padding.
+1. membership_activated:
+   - Get the user's email or whop user ID from the event payload
+   - Look up the user in the Supabase users table by email
+   - Determine which plan they subscribed to by matching 
+     the product_id in the payload against the three 
+     WHOP_*_PRODUCT_ID environment variables
+   - Update the user's plan, plan_status to 'active', 
+     whop_membership_id to the membership ID from the payload
+   - If this is a trial, set plan_status to 'trialing' and 
+     trial_ends_at to the trial end date from the payload
+   - Insert a row into plan_events with event_type 'upgraded' 
+     or 'trial_started'
+   - Return 200
 
-Connected repos section:
-- Remove this section from the main dashboard entirely. It was just 
-  an empty state taking up space. The sidebar "Overview" page can 
-  note repos connected in the stat card. If a user needs to manage 
-  repos they go to GitHub App settings.
+2. membership_deactivated:
+   - Find the user by whop_membership_id
+   - Set their plan to 'free', plan_status to 'cancelled'
+   - Clear whop_membership_id
+   - Insert a row into plan_events with event_type 'cancelled'
+   - Return 200
 
-Manage tokens section:
-- Remove from the main dashboard page. Move to /dashboard/tokens 
-  (its own page linked from the sidebar "Tokens" nav item).
-- On /dashboard/tokens: heading "MCP Tokens" text-2xl font-semibold. 
-  Subtitle "Tokens let your IDE connect to Senix." in text-secondary.
-  Below: a "Generate token" button in neutral-button style (not accent 
-  green). The token generation flow stays identical to what was built 
-  in step 2, just restyled.
-- Token list: each token is a surface card, surface-border border, 
-  rounded-xl, 20px padding. Token name in text-primary font-medium. 
-  Below it: "Created [date]" and "Last used [relative time]" in 
-  text-secondary text-xs side by side with a dot separator. Revoke 
-  button: text-only, text-muted, text-xs, on hover text becomes 
-  #dc2626 (red). No background on the revoke button, it should feel 
-  like a quiet destructive action, not a loud one.
-- Empty state: "No tokens yet. Generate one to connect your IDE." 
-  centered, text-secondary, with a "Generate token" button below it 
-  in neutral-button style.
+3. payment_succeeded:
+   - Find the user by whop_membership_id
+   - Set plan_status to 'active' (in case it was past_due)
+   - Insert a row into plan_events with event_type 'reactivated' 
+     if previous status was past_due, otherwise no event
+   - Return 200
 
-CONNECT IDE PAGE (/dashboard/connect)
+4. invoice_paid:
+   - Same as payment_succeeded handling
+   - Return 200
 
-Remove the left installations panel that currently shows "Senix-Org, 
-3 repos." That information belongs in the sidebar, not as a panel on 
-this specific page.
+For any unrecognized event type, return 200 without processing 
+(Whop requires a 200 response to stop retrying).
 
-IDE grid: keep the 2x2 grid but restyle the cards completely.
-- Each card: surface background, surface-border border, rounded-xl, 
-  24px padding, flex row with items-center gap-4.
-- IDE logo area: 40px by 40px rounded-lg surface-raised background, 
-  flex items-center justify-center. Show the IDE initials in 
-  text-primary font-mono text-sm font-bold (Cu, Ag, CC, Ws).
-- IDE name: text-primary font-medium text-base, flex-1.
-- Select button: neutral-button style. Do NOT use accent green for 
-  this button. It is not the primary action on the page. text-sm, 
-  rounded-lg, border surface-border, background surface-raised, 
-  text-primary. On hover border brightens to #444444.
-- On hover of the entire card: border color goes to #333333, 
-  background to surface-raised. Cursor pointer. Transition duration-150.
+Log all webhook events to the console with the event type and 
+relevant IDs. Do not throw on processing errors inside the handler. 
+Catch errors, log them, and return 200 so Whop does not retry.
 
-After selecting an IDE, the three-step setup view:
-- Step number circles: change from bright green filled circles to 
-  simple outlined circles. Border surface-border, text text-secondary, 
-  font-mono text-sm. When a step is completed (token generated), 
-  the circle gets a checkmark icon (Check from lucide-react) in 
-  accent color and the border becomes accent color. Not filled, 
-  just the border and icon in accent.
-- Step cards: surface background, surface-border border, rounded-xl, 
-  24px padding, 16px gap between cards.
-- Step heading: text-primary font-semibold text-base.
-- Step body text: text-secondary text-sm, line-height relaxed.
-- "Generate token" button: this is the ONE place on the connect page 
-  where accent green is appropriate because it is the primary action. 
-  Use accent background, white text, rounded-lg, font-medium text-sm, 
-  12px horizontal padding, 8px vertical padding. On hover accent-hover 
-  background. Add a subtle scale-95 active state.
-- Token display input: surface-raised background, surface-border 
-  border, rounded-lg, font-mono text-sm text-primary, 12px padding. 
-  Read-only. Copy button beside it: neutral-button style with a 
-  Copy icon from lucide-react, switches to a Check icon for 2 seconds 
-  after copying with a smooth opacity transition.
-- Code block (config snippet): surface-raised background, rounded-lg, 
-  16px padding, font-mono text-xs text-secondary, leading-relaxed. 
-  Line numbers optional but clean. Copy button top-right corner of 
-  the block.
-- File path label below the code block: text-muted text-xs font-mono.
-- "Need help?" link: move it to just below the step cards. Style it 
-  as text-secondary text-sm with an ExternalLink icon from lucide-react 
-  inline. On click it opens /docs/troubleshooting in a new tab 
-  (target="_blank" rel="noopener noreferrer"). Do not scroll to an 
-  inline section. Remove the inline troubleshooting section from this 
-  page entirely. The docs page handles that.
-- Breadcrumb ("Choose a different IDE / Cursor"): keep it but restyle. 
-  text-secondary text-sm, the back arrow as ChevronLeft icon, 
-  separator as a text-muted slash. On hover the back link text 
-  brightens to text-primary.
+CHECKOUT FLOW
+Create src/app/api/billing/checkout/route.ts as a POST endpoint.
 
-MOTION AND TRANSITIONS
+It takes a plan name in the request body ('starter', 'team', 'pro').
+It requires an authenticated session (use existing auth helpers).
+It maps the plan name to the correct WHOP_*_PRODUCT_ID.
+It calls the Whop API to create a checkout session:
+  POST https://api.whop.com/v5/checkout-links
+  Authorization: Bearer WHOP_API_KEY
+  Body: { product_id, redirect_url, prefill_email }
+It returns the checkout URL to the client.
 
-Add these animations. Use Tailwind's built-in transition utilities 
-where possible. For anything more complex use CSS keyframes defined 
-in globals.css or a motion library only if it is already in the 
-project dependencies. Do not add framer-motion or any new animation 
-library.
+If the plan is 'free', return 400 (free plan does not need checkout).
 
-1. Page content fade-in: wrap the main content area in a div with 
-   animate-in fade-in duration-300 (Tailwind animate-in is available 
-   via tailwindcss-animate, check if it is already installed before 
-   using it; if not, use a simple CSS keyframe instead).
+ENFORCE RATE LIMITS IN EXISTING ROUTES
 
-2. Card hover lift: all surface cards get transition-all duration-150 
-   on hover with the border color change described above. No transform 
-   or scale, just the color transition. Keep it subtle.
+1. In the MCP route (src/app/api/mcp/route.ts):
+   After verifying the MCP token, before calling runAnalysis():
+   - Get the user_id from the mcp_tokens table (it already does this)
+   - Call checkReviewLimit(userId, 'mcp')
+   - If not allowed, return a JSON-RPC error response with code 
+     -32000 and message: "Monthly review limit reached. Upgrade 
+     your plan at https://senix-chi.vercel.app/dashboard"
+   - If allowed, proceed with the analysis
 
-3. IDE selection transition: when the user clicks "Select" on an IDE 
-   card, the grid fades out and the three-step setup view fades in. 
-   Use opacity and a slight translateY (8px down to 0) on the incoming 
-   view. Duration 200ms. This replaces the current instant swap.
+2. In the GitHub webhook handler that processes PR reviews 
+   (wherever the PR analysis is triggered):
+   - Find the user_id from the installation or repository record
+   - Call checkReviewLimit(userId, 'pr')
+   - If not allowed, post a comment on the PR saying:
+     "Senix monthly review limit reached. Upgrade at 
+     https://senix-chi.vercel.app/dashboard to continue 
+     reviewing PRs."
+   - If allowed, proceed with the analysis
 
-4. Copy button feedback: when the user clicks a copy button, the icon 
-   switches from Copy to Check with a 150ms opacity crossfade. After 
-   2000ms it fades back to Copy.
+3. When the GitHub App is installed on a new repo:
+   - Call checkRepoLimit(userId)
+   - If not allowed, respond with an error or post an issue 
+     comment saying:
+     "Repo limit reached for your current plan. Upgrade at 
+     https://senix-chi.vercel.app/dashboard"
 
-5. Step completion: when the token is generated and step 1 is complete, 
-   the step circle animates from outlined to the accent-colored check 
-   state with a 300ms ease-out transition on the border-color and 
-   color properties.
+DASHBOARD BILLING PAGE
+Create src/app/dashboard/billing/page.tsx.
 
-6. Sidebar active indicator: the 2px left border on the active nav 
-   item slides in from opacity 0 to opacity 1 on page load with a 
-   200ms ease-out. On navigation change it transitions smoothly.
+Add "Billing" to the dashboard sidebar nav with a CreditCard 
+icon from lucide-react, linking to /dashboard/billing.
 
-SMALL DETAILS THAT MATTER
+The billing page shows:
 
-1. "Need help?" now opens in a new tab everywhere it appears. Remove 
-   every instance of it scrolling to an inline section.
+Current plan section:
+- Plan name and status badge (active, trialing, cancelled, past_due)
+- If trialing: "Trial ends in N days" in amber text
+- If cancelled: "Plan cancelled. Access until [date]." in red text
+- Reviews used this month: a progress bar showing 
+  used / limit with the numbers below it
+  Color: green under 70%, amber between 70% and 90%, red above 90%
+- Repos connected: N of N (or "Unlimited" for Pro)
 
-2. All timestamps use relative time ("4 days ago", "just now") with a 
-   title attribute containing the full ISO date so hovering shows the 
-   exact time.
+Upgrade section (show only if not on Pro):
+- Show the next tier up as the recommended upgrade with its 
+  price, repo limit, and review limit
+- A single "Upgrade to [plan]" button that calls 
+  POST /api/billing/checkout and redirects to the Whop 
+  checkout URL
+- A "See all plans" link that expands to show all four tiers 
+  in a simple comparison table
 
-3. The user avatar in the sidebar bottom section: if the user has a 
-   GitHub avatar, show it in a 32px circle with a 1px surface-border 
-   ring. If no avatar, show their initials in a surface-raised circle 
-   with text-secondary text.
+Manage subscription section (show only if on a paid plan):
+- "Cancel subscription" as a quiet text link in text-muted 
+  that turns red on hover
+- On click, show a confirmation modal: "Are you sure you want 
+  to cancel? You will be downgraded to the Free plan at the 
+  end of your billing period."
+- Cancellation calls the Whop API to cancel the membership:
+  DELETE https://api.whop.com/v5/memberships/{whop_membership_id}
+  Authorization: Bearer WHOP_API_KEY
+- On success, update plan_status to 'cancelled' in Supabase 
+  and show a success message
 
-4. Risk badges: the text inside is always uppercase and letter-spaced. 
-   HIGH in red, MEDIUM in amber, LOW in green. UNKNOWN or missing risk 
-   in text-muted on surface-raised background.
+PRICING PAGE UPDATE
+Update the public pricing page (wherever the current pricing 
+cards are rendered) to match the new four tiers exactly:
 
-5. The "Details" button on analysis cards has a ChevronRight icon 
-   after the text, not an arrow. It should feel like a quiet action.
+Free: $0, 1 repo, 30 reviews/month, community support
+Starter: $18/month, 3 repos, 200 reviews/month, community support
+Team: $79/month, 15 repos, 1000 reviews/month, email support
+Pro: $199/month, unlimited repos, 5000 reviews/month, priority support
 
-6. Scrollbars in the dashboard: add custom scrollbar styling in 
-   globals.css. Thin (4px), surface-raised color track, surface-border 
-   color thumb, rounded. Only visible on hover of the scrollable area.
+The "Start free trial" buttons on Starter, Team, and Pro should 
+now call POST /api/billing/checkout with the plan name and 
+redirect to Whop checkout. The Free tier button says 
+"Get started free" and links to /login.
 
-7. Focus states: all interactive elements must have a visible focus 
-   ring for keyboard navigation. Use outline-2 outline-offset-2 
-   outline-accent on focus-visible. Do not remove focus styles.
-
-8. The Senix logo in the sidebar: add a 1px surface-border bottom 
-   border under the logo section to visually separate it from the nav.
+Remove the "14 days free, no credit card required" text from 
+the top of the pricing section. Replace it with: 
+"Start free. Upgrade when your team needs more."
 
 WHAT NOT TO CHANGE
+Do not change the MCP tool output or shipping brief format. 
+Do not change the dashboard design or sidebar from the recent 
+design upgrade. Do not change the playground page. Do not 
+change the CMA project. Do not modify the GitHub App 
+installation flow beyond adding the repo limit check.
 
-Do not change any API routes, data fetching logic, authentication 
-flows, token generation logic, or MCP server code. Do not change the 
-playground page in this task. Do not change the public landing page. 
-Do not add any new npm packages except checking if tailwindcss-animate 
-is already present before using it. Do not change the docs pages. Do 
-not change any Supabase queries.
+NEW ENVIRONMENT VARIABLES NEEDED
+WHOP_API_KEY
+WHOP_WEBHOOK_SECRET
+WHOP_STARTER_PRODUCT_ID=prod_2mMPi5Lwhvmdn
+WHOP_TEAM_PRODUCT_ID=prod_gVtESTLqdLTRD
+WHOP_PRO_PRODUCT_ID=prod_8vnwEeSVSw2de
 
 WHEN DONE
-
-Tell me every file you changed. Take a screenshot or describe the 
-visual state of:
-1. The main /dashboard page with the new sidebar
-2. The /dashboard/connect IDE grid
-3. The three-step setup view after selecting Cursor
-4. The /dashboard/tokens page
-
-If you cannot screenshot, describe what each page looks like in 
-enough detail that I can verify it matches this spec without guessing.
+List every file created or modified. Paste the full contents 
+of supabase/migrations/008_pricing.sql. Confirm which existing 
+routes now have rate limit checks. Confirm the webhook handler 
+verifies signatures before processing. Note any assumptions 
+made about the GitHub webhook handler location since you will 
+need to find it in the existing codebase.

@@ -2,10 +2,12 @@ import { Check } from 'lucide-react';
 import { SiteNav } from '@/components/site-nav';
 import { SiteFooter } from '@/components/site-footer';
 import { Reveal, RevealItem, RevealStagger } from '@/components/reveal';
-import SignInButton from '@/components/sign-in-button';
+import { PLAN_LIMITS } from '@/lib/plan-limits';
 import { Faq } from './faq';
+import { PricingCheckoutButton } from './pricing-checkout-button';
 
 type Tier = {
+  plan: 'free' | 'starter' | 'team' | 'pro';
   name: string;
   price: string;
   cadence: string;
@@ -17,60 +19,72 @@ type Tier = {
 
 const TIERS: Tier[] = [
   {
-    name: 'Hobby',
-    price: '$9',
-    cadence: '/month',
-    blurb: 'For solo developers',
+    plan: 'free',
+    name: 'Free',
+    price: '$0',
+    cadence: '',
+    blurb: 'For trying Senix on one repo',
     features: [
-      'Up to 3 repos',
-      '50 PR analyses per month',
-      'MCP integration for IDEs',
-      '100 MCP analyses per month',
+      `${PLAN_LIMITS.free.repos} repo`,
+      `${PLAN_LIMITS.free.reviews} reviews per month`,
       'Community support',
+      'Permanent free plan',
     ],
-    cta: 'Start free trial',
+    cta: 'Get started free',
   },
   {
-    name: 'Team',
-    price: '$49',
+    plan: 'starter',
+    name: 'Starter',
+    price: '$18',
     cadence: '/month',
-    blurb: 'For small teams',
+    blurb: 'For solo developers shipping often',
     features: [
-      'Up to 10 repos',
-      '500 PR analyses per month',
-      'MCP integration for IDEs',
-      '1,000 MCP analyses per month',
-      'Email support',
-      'Priority response',
+      `${PLAN_LIMITS.starter.repos} repos`,
+      `${PLAN_LIMITS.starter.reviews} reviews per month`,
+      'Community support',
+      'Billed monthly',
     ],
-    cta: 'Start free trial',
+    cta: 'Subscribe to Starter',
+  },
+  {
+    plan: 'team',
+    name: 'Team',
+    price: '$79',
+    cadence: '/month',
+    blurb: 'For small teams with shared repos',
+    features: [
+      `${PLAN_LIMITS.team.repos} repos`,
+      `${PLAN_LIMITS.team.reviews.toLocaleString()} reviews per month`,
+      'Email support, 48 hour response',
+      'Billed monthly',
+    ],
+    cta: 'Subscribe to Team',
     highlight: true,
   },
   {
+    plan: 'pro',
     name: 'Pro',
     price: '$199',
     cadence: '/month',
-    blurb: 'For serious teams',
+    blurb: 'For teams with larger review volume',
     features: [
       'Unlimited repos',
-      '5,000 PR analyses per month',
-      'MCP integration for IDEs',
-      '10,000 MCP analyses per month',
-      'Priority support',
-      'Custom risk flag configuration (coming soon)',
+      `${PLAN_LIMITS.pro.reviews.toLocaleString()} reviews per month`,
+      'Priority support, 24 hour response',
+      'Billed monthly',
     ],
-    cta: 'Start free trial',
+    cta: 'Subscribe to Pro',
   },
 ];
 
 const FAQS = [
   {
-    q: 'What does the free trial include?',
-    a: 'Every tier starts with a 14-day free trial. No credit card up front. You only enter billing details if you choose to continue at the end of the trial.',
+    q: 'Is there a free plan?',
+    a: 'Yes. The Free plan is permanent and does not require payment. Starter, Team, and Pro are paid monthly plans.',
   },
   {
     q: 'How is a "review" counted?',
-    a: 'One review = one analysis posted on a PR. If you push three commits to the same PR, that is three reviews. Closed/merged PRs do not get re-analyzed.',
+    a: 'One review is one PR analysis or one MCP analysis. PR updates and IDE requests both count toward the same monthly limit.',
   },
   {
     q: 'Do you train on our code?',
@@ -82,12 +96,12 @@ const FAQS = [
   },
   {
     q: 'Which LLM providers do you support?',
-    a: 'Anthropic, DeepSeek, Gemini, and Groq are all available — switchable per workspace. Defaults to DeepSeek because it has the most reliable structured-output support at low cost.',
+    a: 'Anthropic, DeepSeek, Gemini, and Groq are available. DeepSeek is the default because it has reliable structured output support at low cost.',
   },
 ];
 
 /**
- * Public pricing page. Three-tier grid + FAQ. Mirrors the rest of the
+ * Public pricing page. Four-tier grid + FAQ. Mirrors the rest of the
  * marketing surface: SiteNav, sectioned content, Reveal-on-scroll,
  * SiteFooter.
  */
@@ -100,34 +114,34 @@ export default function PricingPage(): React.ReactElement {
           <div aria-hidden className="absolute inset-0 bg-grid opacity-50" />
           <div
             aria-hidden
-            className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-glow-green pointer-events-none"
+            className="absolute -top-40 left-1/2 h-[500px] w-[700px] -translate-x-1/2 bg-glow-green pointer-events-none"
           />
-          <div className="relative max-w-5xl mx-auto px-5 sm:px-6 pt-20 sm:pt-28 pb-12 text-center">
+          <div className="relative mx-auto max-w-5xl px-5 pb-12 pt-20 text-center sm:px-6 sm:pt-28">
             <Reveal>
               <span className="text-xs font-mono uppercase tracking-[0.2em] text-green-500/80">
                 Pricing
               </span>
             </Reveal>
             <Reveal delay={0.05}>
-              <h1 className="mt-3 text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.02em]">
+              <h1 className="mt-3 text-4xl font-bold sm:text-5xl md:text-6xl">
                 Simple pricing. No surprises.
               </h1>
             </Reveal>
             <Reveal delay={0.1}>
-              <p className="mt-5 text-zinc-200 max-w-xl mx-auto leading-relaxed">
+              <p className="mx-auto mt-5 max-w-xl leading-relaxed text-zinc-200">
                 One subscription. GitHub PR reviews + IDE integration via MCP.
               </p>
             </Reveal>
             <Reveal delay={0.13}>
-              <p className="mt-2 text-zinc-400 max-w-xl mx-auto leading-relaxed">
-                Start free for 14 days. No credit card required.
+              <p className="mx-auto mt-2 max-w-xl leading-relaxed text-zinc-400">
+                Start free. Upgrade when your team needs more.
               </p>
             </Reveal>
           </div>
         </section>
 
-        <section className="max-w-6xl mx-auto px-5 sm:px-6 pb-24">
-          <RevealStagger className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <section className="mx-auto max-w-6xl px-5 pb-24 sm:px-6">
+          <RevealStagger className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
             {TIERS.map((tier) => (
               <RevealItem key={tier.name}>
                 <PricingCard tier={tier} />
@@ -136,25 +150,24 @@ export default function PricingPage(): React.ReactElement {
           </RevealStagger>
         </section>
 
-        <section className="max-w-3xl mx-auto px-5 sm:px-6 pb-20">
+        <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-6">
           <Reveal>
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-7">
-              <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
+              <h2 className="text-xl font-semibold text-zinc-100">
                 What&apos;s the difference between PR and MCP analyses?
               </h2>
-              <p className="mt-3 text-zinc-400 leading-relaxed">
+              <p className="mt-3 leading-relaxed text-zinc-400">
                 PR analyses run automatically when you open or update a pull request. MCP
-                analyses run on-demand when you ask your IDE&apos;s AI (Cursor, Claude Code,
-                Windsurf) to review your changes. Both use the same prompt and risk
-                taxonomy.
+                analyses run on demand when you ask your IDE&apos;s AI to review your
+                changes. Both use the same prompt and risk taxonomy.
               </p>
             </div>
           </Reveal>
         </section>
 
-        <section className="max-w-3xl mx-auto px-5 sm:px-6 pb-28">
+        <section className="mx-auto max-w-3xl px-5 pb-28 sm:px-6">
           <Reveal>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-10">
+            <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">
               Frequently asked
             </h2>
           </Reveal>
@@ -171,14 +184,14 @@ export default function PricingPage(): React.ReactElement {
 function PricingCard({ tier }: { tier: Tier }): React.ReactElement {
   return (
     <div
-      className={`relative rounded-xl border p-7 h-full flex flex-col transition-colors ${
+      className={`relative flex h-full flex-col rounded-xl border p-7 transition-colors ${
         tier.highlight
           ? 'border-green-500/40 bg-zinc-900/70 shadow-2xl shadow-green-950/30'
           : 'border-zinc-800 bg-zinc-900/30 hover:border-zinc-700'
       }`}
     >
       {tier.highlight && (
-        <span className="absolute -top-2.5 right-6 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-500 text-zinc-950">
+        <span className="absolute -top-2.5 right-6 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-950">
           Most popular
         </span>
       )}
@@ -188,23 +201,15 @@ function PricingCard({ tier }: { tier: Tier }): React.ReactElement {
         <span className="text-5xl font-bold tracking-tight tabular-nums">{tier.price}</span>
         <span className="text-zinc-500">{tier.cadence}</span>
       </div>
-      <ul className="mt-7 space-y-3 text-sm flex-1">
-        {tier.features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5">
-            <Check
-              size={16}
-              strokeWidth={2.25}
-              className="mt-0.5 text-green-500 shrink-0"
-            />
-            <span className="text-zinc-300">{f}</span>
+      <ul className="mt-7 flex-1 space-y-3 text-sm">
+        {tier.features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2.5">
+            <Check size={16} strokeWidth={2.25} className="mt-0.5 shrink-0 text-green-500" />
+            <span className="text-zinc-300">{feature}</span>
           </li>
         ))}
       </ul>
-      <SignInButton
-        label={tier.cta}
-        variant={tier.highlight ? 'primary' : 'secondary'}
-        className="mt-8"
-      />
+      <PricingCheckoutButton plan={tier.plan} label={tier.cta} highlight={tier.highlight} />
     </div>
   );
 }

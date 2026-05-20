@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase';
    export async function findRepository(githubRepoId: number) {
      const { data } = await supabaseAdmin
        .from('repositories')
-       .select('*')
+       .select('*, installations(installed_by_user_id)')
        .eq('github_repo_id', githubRepoId)
        .single();
      return data;

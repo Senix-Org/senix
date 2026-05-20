@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatShippingBrief, runAnalysis } from '@/lib/analyze-changes';
+import { checkReviewLimit } from '@/lib/plan-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -130,6 +131,7 @@ const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
 const INTERNAL_ERROR = -32603;
+const MONTHLY_LIMIT_REACHED = -32000;
 
 type JsonRpcId = string | number | null;
 
@@ -185,7 +187,7 @@ async function verifyToken(req: NextRequest): Promise<McpTokenRow | null> {
 }
 
 /** Dispatch a single JSON-RPC request to the matching MCP method. */
-async function handleRpc(rpc: JsonRpcRequest): Promise<NextResponse> {
+async function handleRpc(rpc: JsonRpcRequest, token: McpTokenRow): Promise<NextResponse> {
   const id = rpc.id ?? null;
 
   switch (rpc.method) {
@@ -209,6 +211,15 @@ async function handleRpc(rpc: JsonRpcRequest): Promise<NextResponse> {
       }
       const args = (rpc.params?.arguments ?? {}) as Record<string, unknown>;
       try {
+        const limit = await checkReviewLimit(token.user_id, 'mcp');
+        if (!limit.allowed) {
+          return rpcError(
+            id,
+            MONTHLY_LIMIT_REACHED,
+            'Monthly review limit reached. Upgrade your plan at https://senix-chi.vercel.app/dashboard'
+          );
+        }
+
         const { result, filesReviewed } = await runAnalysis(args);
         return rpcResult(id, {
           content: [{ type: 'text', text: formatShippingBrief(result, filesReviewed) }],
@@ -270,7 +281,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    return await handleRpc(rpc);
+    return await handleRpc(rpc, token);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return rpcError(rpc.id, INTERNAL_ERROR, message);

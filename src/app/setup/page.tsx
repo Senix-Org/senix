@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserPlan, syncReposConnected } from '@/lib/plan-limits';
 import { SiteNav } from '@/components/site-nav';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,11 @@ type InstallationRow = {
   github_installation_id: number;
   account_login: string;
   installed_by_user_id: string | null;
+};
+
+type RepositoryLimitRow = {
+  id: string;
+  full_name: string;
 };
 
 /**
@@ -62,6 +68,7 @@ export default async function SetupPage({
     );
   }
 
+  const blockedRepoCount = await enforceRepoLimitForUser(userRow.id);
   const repoCount = await countReposForInstallation(installation.id);
 
   return (
@@ -86,6 +93,12 @@ export default async function SetupPage({
             You&apos;ll see analyses on every PR opened in {repoCount}{' '}
             {repoCount === 1 ? 'repo' : 'repos'}.
           </p>
+          {blockedRepoCount > 0 && (
+            <p className="mt-3 rounded-md border border-red-900/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
+              Repo limit reached for your current plan. Upgrade at{' '}
+              https://senix-chi.vercel.app/dashboard
+            </p>
+          )}
           <Link
             href="/dashboard"
             className="group mt-7 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 font-medium text-sm transition"
@@ -196,6 +209,39 @@ async function countReposForInstallation(installationId: string): Promise<number
     .select('*', { count: 'exact', head: true })
     .eq('installation_id', installationId);
   return count ?? 0;
+}
+
+async function enforceRepoLimitForUser(userId: string): Promise<number> {
+  const userPlan = await getUserPlan(userId);
+  const limit = userPlan.effectiveLimit.repos;
+
+  if (limit === -1) {
+    await syncReposConnected(userId);
+    return 0;
+  }
+
+  const { data } = await supabaseAdmin
+    .from('repositories')
+    .select('id, full_name, installations!inner(installed_by_user_id, uninstalled_at)')
+    .eq('installations.installed_by_user_id', userId)
+    .is('installations.uninstalled_at', null)
+    .order('full_name', { ascending: true });
+
+  const repos = (data ?? []) as unknown as RepositoryLimitRow[];
+  const blockedRepos = repos.slice(limit);
+
+  if (blockedRepos.length > 0) {
+    await supabaseAdmin
+      .from('repositories')
+      .delete()
+      .in(
+        'id',
+        blockedRepos.map((repo) => repo.id)
+      );
+  }
+
+  await syncReposConnected(userId);
+  return blockedRepos.length;
 }
 
 function renderError(message: string): React.ReactElement {

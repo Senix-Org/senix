@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   BookOpen,
   ChevronUp,
+  CreditCard,
   GitPullRequest,
   Key,
   LayoutDashboard,
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Reviews', href: '/dashboard/reviews', icon: GitPullRequest },
   { label: 'Connect IDE', href: '/dashboard/connect', icon: Plug },
   { label: 'Tokens', href: '/dashboard/tokens', icon: Key },
+  { label: 'Billing', href: '/dashboard/billing', icon: CreditCard },
   { label: 'Docs', href: '/docs/troubleshooting', icon: BookOpen, external: true },
 ];
 
@@ -68,7 +70,8 @@ export function DashboardSidebar({
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
-    setDrawerOpen(false);
+    const id = window.setTimeout(() => setDrawerOpen(false), 0);
+    return () => window.clearTimeout(id);
   }, [pathname]);
 
   // Labels are hidden while the rail is collapsed, but on desktop only:

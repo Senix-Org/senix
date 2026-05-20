@@ -1,6 +1,8 @@
 import { waitUntil } from '@vercel/functions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enqueue, type JobPayloadMap } from '@/lib/queue';
+import { checkReviewLimit } from '@/lib/plan-limits';
+import { upsertPRComment } from '@/server/github-comments';
 import { findRepository } from './lookup';
 
 /**
@@ -12,24 +14,62 @@ import { findRepository } from './lookup';
  * All other actions are ignored. Closed/merged PRs don't need analysis.
  */
 const ACTIONS_WE_HANDLE = new Set(['opened', 'synchronize', 'reopened']);
+const LIMIT_REACHED_COMMENT =
+  'Senix monthly review limit reached. Upgrade at https://senix-chi.vercel.app/dashboard to continue reviewing PRs.';
 
-export async function handlePullRequest(payload: any): Promise<string> {
-  const action = payload.action as string;
+type RepositoryRow = {
+  id: string;
+  full_name: string;
+  enabled: boolean;
+  installations: { installed_by_user_id: string | null } | null;
+};
+
+type PriorCommentRow = { github_comment_id: number | null };
+type PullRequestPayload = {
+  action?: string;
+  pull_request?: {
+    number?: number;
+    id?: number;
+    title?: string | null;
+    user?: { login?: string | null } | null;
+    state?: string;
+    head?: { sha?: string };
+    base?: { sha?: string };
+  };
+  repository?: { id?: number };
+  installation?: { id?: number };
+};
+
+export async function handlePullRequest(payload: PullRequestPayload): Promise<string> {
+  const action = payload.action ?? '';
   if (!ACTIONS_WE_HANDLE.has(action)) {
     return `pull_request:skipped:${action}`;
   }
 
   const pr = payload.pull_request;
   const repoPayload = payload.repository;
-  const installationId = payload.installation?.id as number | undefined;
+  const installationId = payload.installation?.id;
 
-  if (!pr || !repoPayload || !installationId) {
+  if (
+    !pr ||
+    !repoPayload?.id ||
+    !installationId ||
+    !pr.number ||
+    !pr.id ||
+    !pr.head?.sha ||
+    !pr.base?.sha
+  ) {
     return 'pull_request:missing-fields';
   }
 
-  const repo = await findRepository(repoPayload.id);
+  const repo = (await findRepository(repoPayload.id)) as RepositoryRow | null;
   if (!repo) return `pull_request:unknown-repo:${repoPayload.id}`;
   if (!repo.enabled) return `pull_request:repo-disabled:${repo.full_name}`;
+
+  const userId = repo.installations?.installed_by_user_id ?? null;
+  if (!userId) {
+    return `pull_request:repo-not-linked:${repo.full_name}`;
+  }
 
   // Step 1: Upsert the PR row
   const { data: prRow, error: prError } = await supabaseAdmin
@@ -53,6 +93,17 @@ export async function handlePullRequest(payload: any): Promise<string> {
 
   if (prError || !prRow) {
     throw new Error(`Failed to upsert PR: ${prError?.message ?? 'unknown'}`);
+  }
+
+  const reviewLimit = await checkReviewLimit(userId, 'pr');
+  if (!reviewLimit.allowed) {
+    await postLimitReachedComment({
+      pullRequestId: prRow.id,
+      installationId,
+      fullName: repo.full_name,
+      prNumber: pr.number,
+    });
+    return `pull_request:limit-reached:${repo.full_name}#${pr.number}`;
   }
 
   // Step 2: Create the analysis row in queued state
@@ -97,6 +148,43 @@ export async function handlePullRequest(payload: any): Promise<string> {
   return `pull_request:${action}:${repo.full_name}#${pr.number}:${dispatchOutcome}`;
 }
 
+async function postLimitReachedComment(input: {
+  pullRequestId: string;
+  installationId: number;
+  fullName: string;
+  prNumber: number;
+}): Promise<void> {
+  const [owner, repo] = input.fullName.split('/');
+  if (!owner || !repo) return;
+
+  const { data: priorRow } = await supabaseAdmin
+    .from('analyses')
+    .select('github_comment_id')
+    .eq('pull_request_id', input.pullRequestId)
+    .not('github_comment_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const prior = (priorRow ?? null) as unknown as PriorCommentRow | null;
+
+  try {
+    await upsertPRComment({
+      installationId: input.installationId,
+      owner,
+      repo,
+      prNumber: input.prNumber,
+      commentBody: LIMIT_REACHED_COMMENT,
+      existingCommentId: prior?.github_comment_id ?? null,
+    });
+  } catch (err) {
+    console.error('[pull-request] failed to post limit reached comment', {
+      fullName: input.fullName,
+      prNumber: input.prNumber,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 type DispatchOutcome =
   | 'serverless-dispatched'
   | `queued:${string}`
@@ -137,10 +225,10 @@ async function dispatchAnalyzePr(
       );
 
       return 'serverless-dispatched';
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[pull-request] failed to initiate analyze-pr fetch', {
         analysisId: payload.analysisId,
-        message: err?.message ?? String(err),
+        message: errorMessage(err),
       });
       // fall through to Redis fallback
     }
@@ -153,11 +241,15 @@ async function dispatchAnalyzePr(
   try {
     const jobId = await enqueue('analyze-pr', payload);
     return `queued:${jobId}`;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[pull-request] Redis fallback enqueue failed', {
       analysisId: payload.analysisId,
-      message: err?.message ?? String(err),
+      message: errorMessage(err),
     });
     return 'dispatch-failed';
   }
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

@@ -30,8 +30,8 @@ export default function FaqPage(): React.ReactElement {
 
       <div className="mt-8 space-y-4">
         <FaqItem question="Is Senix free?">
-          Every tier starts with a 14-day free trial, no credit card up front. After that,
-          paid plans start at $9/month. See the{' '}
+          Yes. Senix has a permanent Free plan for one repo and 30 reviews per month.
+          Starter, Team, and Pro are paid monthly plans. See the{' '}
           <DocLink href="/pricing">pricing page</DocLink> for details.
         </FaqItem>
 
