@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { CreditCard, Loader2, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { CreditCard, GitPullRequest, Loader2, Sparkles, X, Zap } from 'lucide-react';
+import { DailyBarChart, type DailyBucket } from '@/components/billing/daily-bar-chart';
+import { RiskMixDonut, type RiskMix } from '@/components/billing/risk-mix-donut';
+import { TopReposList, type RepoUsage } from '@/components/billing/top-repos-list';
+import type { UsageAnalysis } from '@/lib/billing-usage';
 
 export type BillingPlanName = 'free' | 'starter' | 'team' | 'pro';
 export type BillingPlanStatus = 'active' | 'trialing' | 'cancelled' | 'past_due';
@@ -23,20 +27,38 @@ export type BillingPlanData = {
   planExpiresAt: string | null;
   whopMembershipId: string | null;
   reviewsUsed: number;
+  prReviewsThisMonth: number;
+  mcpReviewsThisMonth: number;
   reviewLimit: number;
   reposConnected: number;
   repoLimit: number;
+  reviewsResetAt: string;
 };
 
 type Props = {
   planData: BillingPlanData;
   tiers: BillingTier[];
+  analyses: UsageAnalysis[];
 };
+
+type PeriodKey = 'cycle' | '7d' | '30d' | '90d';
+
+const PERIODS: Array<{ key: PeriodKey; label: string }> = [
+  { key: 'cycle', label: 'This cycle' },
+  { key: '7d', label: '7 days' },
+  { key: '30d', label: '30 days' },
+  { key: '90d', label: '90 days' },
+];
 
 const PLAN_ORDER: BillingPlanName[] = ['free', 'starter', 'team', 'pro'];
 
-export function BillingClient({ planData, tiers }: Props): React.ReactElement {
+export function BillingClient({
+  planData,
+  tiers,
+  analyses,
+}: Props): React.ReactElement {
   const [currentPlanData, setCurrentPlanData] = useState(planData);
+  const [period, setPeriod] = useState<PeriodKey>('cycle');
   const [showAllPlans, setShowAllPlans] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -44,15 +66,26 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const currentTier = tiers.find((tier) => tier.plan === currentPlanData.plan) ?? tiers[0];
+  const currentTier =
+    tiers.find((tier) => tier.plan === currentPlanData.plan) ?? tiers[0];
   const nextTier = getNextTier(currentPlanData.plan, tiers);
-  const progress = Math.min(
-    100,
-    (currentPlanData.reviewsUsed / currentPlanData.reviewLimit) * 100
-  );
-  const progressTone =
-    progress >= 90 ? 'bg-risk-high' : progress >= 70 ? 'bg-amber-500' : 'bg-accent';
   const paidPlan = currentPlanData.plan !== 'free';
+
+  const usage = useMemo(
+    () => aggregateUsage(analyses, period, currentPlanData.reviewsResetAt),
+    [analyses, period, currentPlanData.reviewsResetAt]
+  );
+
+  const reviewProgress = Math.min(
+    100,
+    (currentPlanData.reviewsUsed / Math.max(currentPlanData.reviewLimit, 1)) * 100
+  );
+  const reviewProgressTone =
+    reviewProgress >= 90
+      ? 'bg-risk-high'
+      : reviewProgress >= 70
+        ? 'bg-amber-500'
+        : 'bg-accent';
 
   async function startCheckout(plan: BillingPlanName): Promise<void> {
     setCheckoutBusy(true);
@@ -71,7 +104,10 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
         return;
       }
 
-      const payload = (await response.json()) as { checkoutUrl?: string; error?: string };
+      const payload = (await response.json()) as {
+        checkoutUrl?: string;
+        error?: string;
+      };
       if (!response.ok || !payload.checkoutUrl) {
         throw new Error(payload.error ?? 'Checkout could not be started.');
       }
@@ -107,22 +143,106 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
 
   return (
     <div>
-      <header>
-        <h1 className="text-3xl font-semibold text-primary">Billing</h1>
-        <p className="mt-2 text-sm text-secondary">
-          Review usage, connected repos, and subscription status.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-primary">Billing &amp; usage</h1>
+          <p className="mt-2 text-sm text-secondary">
+            Track reviews, tokens, and the repos consuming your quota.
+          </p>
+        </div>
+        <PeriodSwitcher value={period} onChange={setPeriod} />
       </header>
 
-      <section className="mt-8 rounded-xl border border-surface-border bg-surface p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <section className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard
+          icon={<GitPullRequest size={16} className="text-accent" />}
+          label="Reviews this cycle"
+          value={currentPlanData.reviewsUsed.toLocaleString()}
+          sub={`of ${currentPlanData.reviewLimit.toLocaleString()} included`}
+          progress={reviewProgress}
+          progressTone={reviewProgressTone}
+        />
+        <StatCard
+          icon={<Zap size={16} className="text-accent" />}
+          label={`Tokens · ${periodLabel(period)}`}
+          value={formatCompact(usage.totalTokens)}
+          sub={`${usage.totalReviews.toLocaleString()} ${
+            usage.totalReviews === 1 ? 'review' : 'reviews'
+          } analyzed`}
+        />
+        <StatCard
+          icon={<Sparkles size={16} className="text-accent" />}
+          label="Repos connected"
+          value={currentPlanData.reposConnected.toLocaleString()}
+          sub={
+            currentPlanData.repoLimit === -1
+              ? 'Unlimited on your plan'
+              : `of ${currentPlanData.repoLimit.toLocaleString()} on your plan`
+          }
+        />
+      </section>
+
+      <section className="mt-6 rounded-xl border border-surface-border bg-surface p-6">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-xs uppercase tracking-wider text-muted">Current plan</div>
+            <h2 className="text-sm font-medium text-primary">
+              Daily PR reviews
+            </h2>
+            <p className="mt-1 text-xs text-muted">
+              {periodLabel(period)} ·{' '}
+              {currentPlanData.mcpReviewsThisMonth.toLocaleString()} MCP{' '}
+              {currentPlanData.mcpReviewsThisMonth === 1 ? 'review' : 'reviews'} this cycle
+            </p>
+          </div>
+        </div>
+        <div className="mt-5">
+          <DailyBarChart data={usage.daily} metric="reviews" />
+        </div>
+      </section>
+
+      <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-surface-border bg-surface p-6">
+          <h2 className="text-sm font-medium text-primary">Tokens per day</h2>
+          <p className="mt-1 text-xs text-muted">{periodLabel(period)}</p>
+          <div className="mt-5">
+            <DailyBarChart data={usage.daily} metric="tokens" />
+          </div>
+        </div>
+        <div className="rounded-xl border border-surface-border bg-surface p-6">
+          <h2 className="text-sm font-medium text-primary">Risk mix</h2>
+          <p className="mt-1 text-xs text-muted">
+            Distribution across reviewed PRs
+          </p>
+          <div className="mt-5">
+            <RiskMixDonut mix={usage.riskMix} />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-xl border border-surface-border bg-surface p-6">
+        <h2 className="text-sm font-medium text-primary">Top repos</h2>
+        <p className="mt-1 text-xs text-muted">
+          Where your reviews are going this {periodLabel(period).toLowerCase()}
+        </p>
+        <div className="mt-5">
+          <TopReposList repos={usage.topRepos} total={usage.totalReviews} />
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-xl border border-surface-border bg-surface p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted">
+              Current plan
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <h2 className="text-2xl font-semibold text-primary">{currentTier.label}</h2>
+              <h2 className="text-2xl font-semibold text-primary">
+                {currentTier.label}
+              </h2>
               <span className={statusBadgeClass(currentPlanData.planStatus)}>
                 {statusLabel(currentPlanData.planStatus)}
               </span>
+              <span className="text-sm text-secondary">{currentTier.price}/mo</span>
             </div>
             {currentPlanData.planStatus === 'trialing' && currentPlanData.trialEndsAt && (
               <p className="mt-2 text-sm text-amber-300">
@@ -136,86 +256,48 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
                   : 'Plan cancelled. Access has ended.'}
               </p>
             )}
+            <p className="mt-2 text-xs text-muted">
+              Quota resets {formatDate(nextResetDate(currentPlanData.reviewsResetAt))}
+            </p>
           </div>
 
-          <div className="rounded-lg border border-surface-border bg-surface-raised px-4 py-3">
-            <div className="text-xs uppercase tracking-wider text-muted">Repos connected</div>
-            <div className="mt-1 text-lg font-semibold text-primary">
-              {currentPlanData.reposConnected.toLocaleString()} of{' '}
-              {currentPlanData.repoLimit === -1
-                ? 'Unlimited'
-                : currentPlanData.repoLimit.toLocaleString()}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-7">
-          <div className="flex items-center justify-between gap-4 text-sm">
-            <span className="font-medium text-primary">Reviews used this month</span>
-            <span className="tabular-nums text-secondary">
-              {currentPlanData.reviewsUsed.toLocaleString()} /{' '}
-              {currentPlanData.reviewLimit.toLocaleString()}
-            </span>
-          </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-raised">
-            <div
-              className={`h-full rounded-full ${progressTone}`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-xs text-muted">
-            <span>{currentPlanData.reviewsUsed.toLocaleString()} used</span>
-            <span>{currentPlanData.reviewLimit.toLocaleString()} included</span>
-          </div>
-        </div>
-      </section>
-
-      {nextTier && (
-        <section className="mt-6 rounded-xl border border-surface-border bg-surface p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-accent">Recommended upgrade</div>
-              <h2 className="mt-2 text-xl font-semibold text-primary">{nextTier.label}</h2>
-              <p className="mt-2 text-sm text-secondary">
-                {nextTier.price} per month, {formatRepos(nextTier.repos)},{' '}
-                {nextTier.reviews.toLocaleString()} reviews per month.
-              </p>
-            </div>
+          <div className="flex flex-col items-start gap-2 lg:items-end">
+            {nextTier && (
+              <button
+                type="button"
+                onClick={() => startCheckout(nextTier.plan)}
+                disabled={checkoutBusy}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-60"
+              >
+                {checkoutBusy ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CreditCard size={16} />
+                )}
+                Upgrade to {nextTier.label}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => startCheckout(nextTier.plan)}
-              disabled={checkoutBusy}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-60"
+              onClick={() => setShowAllPlans((value) => !value)}
+              className="text-sm text-secondary transition-colors hover:text-primary"
             >
-              {checkoutBusy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-              Upgrade to {nextTier.label}
+              {showAllPlans ? 'Hide all plans' : 'See all plans'}
             </button>
+            {paidPlan && (
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(true)}
+                className="text-xs text-muted transition-colors hover:text-risk-high"
+              >
+                Cancel subscription
+              </button>
+            )}
           </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAllPlans((value) => !value)}
-            className="mt-5 text-sm text-secondary transition-colors hover:text-primary"
-          >
-            See all plans
-          </button>
-
-          {showAllPlans && <PlanTable tiers={tiers} />}
-        </section>
-      )}
-
-      {paidPlan && (
-        <section className="mt-6 rounded-xl border border-surface-border bg-surface p-6">
-          <h2 className="text-lg font-semibold text-primary">Manage subscription</h2>
-          <button
-            type="button"
-            onClick={() => setConfirmCancel(true)}
-            className="mt-4 text-sm text-muted transition-colors hover:text-risk-high"
-          >
-            Cancel subscription
-          </button>
-        </section>
-      )}
+        {showAllPlans && <PlanTable tiers={tiers} currentPlan={currentPlanData.plan} />}
+      </section>
 
       {(message || error) && (
         <div
@@ -230,10 +312,12 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
       )}
 
       {confirmCancel && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4">
+        <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-md rounded-xl border border-surface-border bg-surface p-6 shadow-2xl shadow-black/50">
             <div className="flex items-start justify-between gap-4">
-              <h2 className="text-lg font-semibold text-primary">Cancel subscription</h2>
+              <h2 className="text-lg font-semibold text-primary">
+                Cancel subscription
+              </h2>
               <button
                 type="button"
                 onClick={() => setConfirmCancel(false)}
@@ -244,8 +328,8 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
               </button>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-secondary">
-              Are you sure you want to cancel? You will be downgraded to the Free plan at
-              the end of your billing period.
+              Are you sure you want to cancel? You will be downgraded to the Free
+              plan at the end of your billing period.
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -272,7 +356,80 @@ export function BillingClient({ planData, tiers }: Props): React.ReactElement {
   );
 }
 
-function PlanTable({ tiers }: { tiers: BillingTier[] }): React.ReactElement {
+function PeriodSwitcher({
+  value,
+  onChange,
+}: {
+  value: PeriodKey;
+  onChange: (next: PeriodKey) => void;
+}): React.ReactElement {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-lg border border-surface-border bg-surface p-1 text-sm">
+      {PERIODS.map((p) => {
+        const active = value === p.key;
+        return (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => onChange(p.key)}
+            className={`rounded-md px-3 py-1.5 transition-colors ${
+              active
+                ? 'bg-surface-raised text-primary'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            {p.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+  progress,
+  progressTone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  progress?: number;
+  progressTone?: string;
+}): React.ReactElement {
+  return (
+    <div className="rounded-xl border border-surface-border bg-surface p-5">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-3 text-2xl font-semibold tabular-nums text-primary">
+        {value}
+      </div>
+      <div className="mt-1 text-xs text-secondary">{sub}</div>
+      {typeof progress === 'number' && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-raised">
+          <div
+            className={`h-full rounded-full ${progressTone ?? 'bg-accent'}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanTable({
+  tiers,
+  currentPlan,
+}: {
+  tiers: BillingTier[];
+  currentPlan: BillingPlanName;
+}): React.ReactElement {
   return (
     <div className="mt-5 overflow-x-auto rounded-lg border border-surface-border">
       <table className="min-w-full divide-y divide-surface-border text-sm">
@@ -286,21 +443,130 @@ function PlanTable({ tiers }: { tiers: BillingTier[] }): React.ReactElement {
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-border">
-          {tiers.map((tier) => (
-            <tr key={tier.plan}>
-              <td className="px-4 py-3 font-medium text-primary">{tier.label}</td>
-              <td className="px-4 py-3 text-secondary">{tier.price}</td>
-              <td className="px-4 py-3 text-secondary">{formatRepos(tier.repos)}</td>
-              <td className="px-4 py-3 text-secondary">
-                {tier.reviews.toLocaleString()} per month
-              </td>
-              <td className="px-4 py-3 text-secondary">{tier.support}</td>
-            </tr>
-          ))}
+          {tiers.map((tier) => {
+            const active = tier.plan === currentPlan;
+            return (
+              <tr key={tier.plan} className={active ? 'bg-surface-raised/50' : ''}>
+                <td className="px-4 py-3 font-medium text-primary">
+                  {tier.label}
+                  {active && (
+                    <span className="ml-2 text-xs text-accent">Current</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-secondary">{tier.price}</td>
+                <td className="px-4 py-3 text-secondary">{formatRepos(tier.repos)}</td>
+                <td className="px-4 py-3 text-secondary">
+                  {tier.reviews.toLocaleString()} per month
+                </td>
+                <td className="px-4 py-3 text-secondary">{tier.support}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
+}
+
+type AggregatedUsage = {
+  daily: DailyBucket[];
+  riskMix: RiskMix;
+  topRepos: RepoUsage[];
+  totalReviews: number;
+  totalTokens: number;
+};
+
+function aggregateUsage(
+  analyses: UsageAnalysis[],
+  period: PeriodKey,
+  cycleStartIso: string
+): AggregatedUsage {
+  const range = resolveRange(period, cycleStartIso);
+  const filtered = analyses.filter((a) => {
+    const ts = new Date(a.createdAt).getTime();
+    return ts >= range.startMs && ts <= range.endMs;
+  });
+
+  const buckets = new Map<string, DailyBucket>();
+  for (let day = 0; day < range.bucketCount; day += 1) {
+    const date = new Date(range.startMs + day * 86_400_000);
+    const key = isoDay(date);
+    buckets.set(key, { date: key, reviews: 0, tokens: 0 });
+  }
+
+  const riskMix: RiskMix = { low: 0, medium: 0, high: 0 };
+  const repoCounts = new Map<string, number>();
+  let totalTokens = 0;
+
+  for (const analysis of filtered) {
+    const key = isoDay(new Date(analysis.createdAt));
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.reviews += 1;
+      bucket.tokens += analysis.tokensUsed;
+    }
+    if (analysis.riskLevel !== 'unknown') {
+      riskMix[analysis.riskLevel] += 1;
+    }
+    totalTokens += analysis.tokensUsed;
+    repoCounts.set(
+      analysis.repoFullName,
+      (repoCounts.get(analysis.repoFullName) ?? 0) + 1
+    );
+  }
+
+  const topRepos: RepoUsage[] = Array.from(repoCounts.entries())
+    .map(([repoFullName, reviews]) => ({ repoFullName, reviews }))
+    .sort((a, b) => b.reviews - a.reviews)
+    .slice(0, 5);
+
+  return {
+    daily: Array.from(buckets.values()),
+    riskMix,
+    topRepos,
+    totalReviews: filtered.length,
+    totalTokens,
+  };
+}
+
+function resolveRange(
+  period: PeriodKey,
+  cycleStartIso: string
+): { startMs: number; endMs: number; bucketCount: number } {
+  const endMs = Date.now();
+  if (period === 'cycle') {
+    const cycleStartMs = new Date(cycleStartIso).getTime();
+    const start = Number.isNaN(cycleStartMs) ? endMs - 30 * 86_400_000 : cycleStartMs;
+    const days = Math.max(1, Math.ceil((endMs - start) / 86_400_000));
+    return { startMs: startOfDayMs(start), endMs, bucketCount: days };
+  }
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+  return {
+    startMs: startOfDayMs(endMs - days * 86_400_000),
+    endMs,
+    bucketCount: days,
+  };
+}
+
+function startOfDayMs(ms: number): number {
+  const date = new Date(ms);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function periodLabel(period: PeriodKey): string {
+  return PERIODS.find((p) => p.key === period)?.label ?? 'This cycle';
+}
+
+function nextResetDate(currentResetIso: string): string {
+  const base = new Date(currentResetIso);
+  if (Number.isNaN(base.getTime())) return currentResetIso;
+  const next = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 1));
+  return next.toISOString();
 }
 
 function getNextTier(plan: BillingPlanName, tiers: BillingTier[]): BillingTier | null {
@@ -338,14 +604,22 @@ function daysUntil(value: string): number {
 }
 
 function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function formatRepos(repos: number): string {
   if (repos === -1) return 'Unlimited repos';
   return `${repos.toLocaleString()} ${repos === 1 ? 'repo' : 'repos'}`;
+}
+
+function formatCompact(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  return value.toLocaleString();
 }
