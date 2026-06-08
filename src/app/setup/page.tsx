@@ -48,8 +48,12 @@ export default async function SetupPage({
   const params = await searchParams;
   const installationId = params.installation_id ? Number(params.installation_id) : null;
 
+  // /setup is GitHub's post-install callback and only makes sense with an
+  // installation_id. If someone lands here without one (e.g. clicked an old
+  // link), bounce them to the dashboard with a notice rather than showing a
+  // dead error page — the dashboard offers the correct "Connect" entry point.
   if (!installationId || Number.isNaN(installationId)) {
-    return renderError('Missing or invalid installation_id in the URL.');
+    redirect('/dashboard?setup=missing');
   }
 
   const supabase = await createServerSupabaseClient();

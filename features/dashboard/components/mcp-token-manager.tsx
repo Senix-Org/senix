@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Copy, Plus, TriangleAlert, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { formatRelativeTime } from '@features/shared/relative-time';
 import { generateMcpToken, revokeMcpToken } from '@/app/dashboard/mcp-tokens/actions';
+import { TokenReveal } from '@features/dashboard/components/token-reveal';
 
 export type McpTokenView = {
   id: string;
@@ -142,7 +143,6 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const close = useCallback(() => {
@@ -179,17 +179,6 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
     setBusy(false);
   }
 
-  async function onCopy(): Promise<void> {
-    if (!token) return;
-    try {
-      await navigator.clipboard.writeText(token);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError('Could not copy. Select the token and copy manually.');
-    }
-  }
-
   return (
     <div
       role="dialog"
@@ -218,23 +207,7 @@ function GenerateModal({ onClose }: { onClose: () => void }): React.ReactElement
 
         {token ? (
           <div className="p-6 pt-4">
-            <div className="flex items-start gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/10 px-3 py-2.5 text-xs text-risk-medium">
-              <TriangleAlert size={15} className="mt-0.5 shrink-0" />
-              <span>This is the only time this token is shown. Copy it now.</span>
-            </div>
-            <div className="mt-4 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg border border-surface-border bg-surface-raised px-3 py-2 font-mono text-sm text-primary">
-                {token}
-              </code>
-              <button
-                type="button"
-                onClick={onCopy}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-neutral-border bg-surface-raised px-3 py-2 text-sm text-secondary transition-colors hover:text-primary"
-              >
-                {copied ? <Check size={15} className="text-accent" /> : <Copy size={15} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
+            <TokenReveal token={token} />
             {error && <p className="mt-3 text-xs text-risk-high">{error}</p>}
             <div className="mt-6 flex justify-end">
               <button

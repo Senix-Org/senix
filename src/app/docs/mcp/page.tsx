@@ -11,48 +11,29 @@ import {
   InlineCode,
   DocLink,
 } from '@features/shared/components/docs/doc-elements';
+import {
+  claudeCodeCliCommand,
+  claudeCodeConfigJson,
+  cursorConfigJson,
+  getMcpServerUrl,
+  windsurfConfigJson,
+} from '@features/shared/mcp-config';
 
 export const metadata: Metadata = {
   title: 'MCP integration for IDEs — Senix Docs',
   description: 'Connect Senix to Cursor, Claude Code, Windsurf, and other MCP-compatible IDEs.',
 };
 
-const CURSOR_CONFIG = `{
-  "mcpServers": {
-    "senix": {
-      "transport": "http",
-      "url": "https://senix-chi.vercel.app/api/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
-      }
-    }
-  }
-}`;
-
-const CLAUDE_CODE_CONFIG = `{
-  "mcpServers": {
-    "senix": {
-      "type": "http",
-      "url": "https://senix-chi.vercel.app/api/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
-      }
-    }
-  }
-}`;
-
-const WINDSURF_CONFIG = `{
-  "mcpServers": {
-    "senix": {
-      "serverUrl": "https://senix-chi.vercel.app/api/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
-      }
-    }
-  }
-}`;
-
 export default function McpDocsPage(): React.ReactElement {
+  const serverUrl = getMcpServerUrl();
+  // Snippets use a placeholder token; the dashboard Connect flow fills in a
+  // real token automatically. These are built from the same module the
+  // dashboard uses, so the shapes always match.
+  const cursorConfig = cursorConfigJson(null, serverUrl);
+  const claudeCodeConfig = claudeCodeConfigJson(null, serverUrl);
+  const claudeCodeCli = claudeCodeCliCommand(null, serverUrl);
+  const windsurfConfig = windsurfConfigJson(null, serverUrl);
+
   return (
     <>
       <DocH1>MCP integration for IDEs</DocH1>
@@ -70,48 +51,51 @@ export default function McpDocsPage(): React.ReactElement {
         pull request required.
       </DocP>
 
-      <DocH2>Setup</DocH2>
+      <DocH2>Fastest setup: the dashboard</DocH2>
+      <DocP>
+        The quickest path is{' '}
+        <DocLink href="/dashboard/connect">Dashboard → Connect IDE</DocLink>. It generates a
+        token, gives you a one-click <strong>Add to Cursor</strong> button (or a copyable{' '}
+        <InlineCode>claude mcp add</InlineCode> command for Claude Code), and a live{' '}
+        <strong>Test connection</strong> button. The steps below are the manual equivalent.
+      </DocP>
+
+      <DocH2>Manual setup</DocH2>
       <DocOL>
         <li>
-          Sign in to Senix at <InlineCode>senix-chi.vercel.app</InlineCode>.
+          Go to <strong>Dashboard → MCP tokens</strong> and click{' '}
+          <strong>Generate token</strong>.
         </li>
+        <li>Copy the token — it is shown once (with a 60-second recovery window).</li>
         <li>
-          Go to <strong>Dashboard → MCP tokens</strong>.
-        </li>
-        <li>
-          Click <strong>Generate new token</strong> and give it a name.
-        </li>
-        <li>Copy the token — it is shown only once.</li>
-        <li>
-          Add it to your IDE&apos;s MCP config, replacing{' '}
+          Add it to your IDE using the per-IDE instructions below, replacing{' '}
           <InlineCode>YOUR_TOKEN_HERE</InlineCode> with the copied token.
         </li>
       </DocOL>
 
       <DocH3>Cursor</DocH3>
       <DocP>
-        Add the following to your <InlineCode>~/.cursor/mcp.json</InlineCode> (global) or{' '}
+        Use the one-click <strong>Add to Cursor</strong> button on the{' '}
+        <DocLink href="/dashboard/connect">Connect IDE</DocLink> page, or add this to your{' '}
+        <InlineCode>~/.cursor/mcp.json</InlineCode> (global) or{' '}
         <InlineCode>.cursor/mcp.json</InlineCode> (per project).
       </DocP>
-      <CodeBlock label="mcp.json">{CURSOR_CONFIG}</CodeBlock>
+      <CodeBlock label="mcp.json">{cursorConfig}</CodeBlock>
 
       <DocH3>Claude Code</DocH3>
+      <DocP>Run this in your terminal, then restart Claude Code:</DocP>
+      <CodeBlock label="terminal">{claudeCodeCli}</CodeBlock>
       <DocP>
-        Add Senix to your <InlineCode>.mcp.json</InlineCode>, or run the equivalent CLI
-        command.
+        Or add it to your <InlineCode>.mcp.json</InlineCode> manually:
       </DocP>
-      <CodeBlock label=".mcp.json">{CLAUDE_CODE_CONFIG}</CodeBlock>
-      <CodeBlock label="terminal">
-        {`claude mcp add --transport http senix https://senix-chi.vercel.app/api/mcp \\
-  --header "Authorization: Bearer YOUR_TOKEN_HERE"`}
-      </CodeBlock>
+      <CodeBlock label=".mcp.json">{claudeCodeConfig}</CodeBlock>
 
       <DocH3>Windsurf</DocH3>
       <DocP>
         Add the following to your Windsurf MCP config at{' '}
         <InlineCode>~/.codeium/windsurf/mcp_config.json</InlineCode>.
       </DocP>
-      <CodeBlock label="mcp_config.json">{WINDSURF_CONFIG}</CodeBlock>
+      <CodeBlock label="mcp_config.json">{windsurfConfig}</CodeBlock>
 
       <DocH2>How to use it in your IDE</DocH2>
       <DocP>Once connected, ask your IDE&apos;s AI in plain language:</DocP>
@@ -120,9 +104,9 @@ export default function McpDocsPage(): React.ReactElement {
         <li>&quot;Check this code for risks&quot;</li>
       </DocUL>
       <DocP>
-        The AI will call Senix&apos;s <InlineCode>analyze_code_changes</InlineCode> tool with
-        your before/after file contents. You&apos;ll see the 3-sentence summary, risk level,
-        and focus areas right in your chat panel.
+        The AI calls Senix&apos;s <InlineCode>review_changes</InlineCode> tool with your
+        before/after file contents. You&apos;ll see the behavioral summary, risk level, and
+        focus areas right in your chat panel.
       </DocP>
 
       <DocH2>Differences from the GitHub bot</DocH2>

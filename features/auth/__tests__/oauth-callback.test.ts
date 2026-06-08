@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { exchangeCodeForSession, getUser, upsert } = vi.hoisted(() => ({
   exchangeCodeForSession: vi.fn(),
   getUser: vi.fn(),
-  upsert: vi.fn(async () => ({ error: null })),
+  upsert: vi.fn(async (_row?: Record<string, unknown>) => ({ error: null })),
 }));
 
 vi.mock('@features/shared/supabase-server', () => ({

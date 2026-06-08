@@ -7,23 +7,32 @@ import {
   ChevronLeft,
   Copy,
   ExternalLink,
+  Loader2,
   RotateCw,
+  Terminal,
   TriangleAlert,
 } from 'lucide-react';
+import { TokenReveal } from '@features/dashboard/components/token-reveal';
+import {
+  claudeCodeCliCommand,
+  claudeCodeConfigJson,
+  cursorConfigJson,
+  cursorDeepLink,
+  genericConfigJson,
+  windsurfConfigJson,
+} from '@features/shared/mcp-config';
 
 /**
- * Interactive "Connect your IDE" flow.
+ * Interactive "Connect your IDE" flow, tuned for zero friction.
  *
- * Starts on a 2x2 grid of supported IDEs. Selecting one swaps to a
- * three-step setup view (generate a token, copy the config, restart),
- * all driven by client state with no route change. A generated token is
- * held in state so it can be substituted into the config snippet and so
- * switching IDEs keeps the same token. The token is shown exactly once:
- * once the user leaves the page the state is gone and it cannot be
- * recovered, only revoked from the dashboard.
+ * Pick an IDE, generate a token (with a 60s recovery window), then install
+ * with one click where the tool supports it: a Cursor deep link, the
+ * `claude mcp add` CLI for Claude Code, and a one-click config copy for
+ * Windsurf / others. Step 3 verifies the connection live against
+ * /api/mcp/test. All snippets come from the shared mcp-config module, so
+ * they match the docs exactly and carry the real token.
  */
 
-const SERVER_URL = 'https://senix-chi.vercel.app/api/mcp';
 const MAX_NAME_LEN = 60;
 
 type IdeKey = 'cursor' | 'antigravity' | 'claude-code' | 'windsurf';
@@ -32,13 +41,10 @@ type Ide = {
   key: IdeKey;
   name: string;
   badge: string;
-  /** Where the MCP config file lives for this IDE. */
   location: string;
-  /** Optional docs link, used when the file location varies by platform. */
   docsUrl?: string;
 };
 
-// Grid order matches the task: Cursor, Antigravity, Claude Code, Windsurf.
 const IDES: Ide[] = [
   {
     key: 'cursor',
@@ -47,17 +53,10 @@ const IDES: Ide[] = [
     location: '~/.cursor/mcp.json on macOS or Linux, %APPDATA%\\Cursor\\mcp.json on Windows',
   },
   {
-    key: 'antigravity',
-    name: 'Antigravity',
-    badge: 'Ag',
-    location: 'The MCP config file location varies by platform. See the Antigravity docs.',
-    docsUrl: 'https://antigravity.google',
-  },
-  {
     key: 'claude-code',
     name: 'Claude Code',
     badge: 'CC',
-    location: '~/.config/claude/mcp_servers.json',
+    location: 'Adds an entry to your Claude Code MCP config automatically.',
   },
   {
     key: 'windsurf',
@@ -65,21 +64,14 @@ const IDES: Ide[] = [
     badge: 'Ws',
     location: '~/.codeium/windsurf/mcp_config.json',
   },
+  {
+    key: 'antigravity',
+    name: 'Antigravity',
+    badge: 'Ag',
+    location: 'The MCP config file location varies by platform. See the Antigravity docs.',
+    docsUrl: 'https://antigravity.google',
+  },
 ];
-
-/** Build the config snippet, substituting the token (or a placeholder). */
-function buildConfig(token: string | null): string {
-  return `{
-  "mcpServers": {
-    "senix": {
-      "url": "${SERVER_URL}",
-      "headers": {
-        "Authorization": "Bearer ${token ?? 'YOUR_TOKEN_HERE'}"
-      }
-    }
-  }
-}`;
-}
 
 export function ConnectIde(): React.ReactElement {
   const [selected, setSelected] = useState<Ide | null>(null);
@@ -113,8 +105,8 @@ function IdeGrid({ onSelect }: { onSelect: (ide: Ide) => void }): React.ReactEle
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-raised font-mono text-sm font-bold text-primary">
             {ide.badge}
           </span>
-          <span className="flex-1 truncate text-base font-medium text-primary">{ide.name}</span>
-          <span className="shrink-0 rounded-lg border border-surface-border bg-surface-raised px-3 py-1.5 text-sm text-primary transition-colors duration-150 group-hover:border-[#444444]">
+          <span className="flex-1 truncate text-[15px] font-medium text-primary">{ide.name}</span>
+          <span className="shrink-0 rounded-lg border border-surface-border bg-surface-raised px-3 py-1.5 text-sm text-primary transition-colors duration-150 group-hover:border-neutral-border">
             Select
           </span>
         </button>
@@ -136,7 +128,6 @@ function SetupView({
 }): React.ReactElement {
   return (
     <div className="animate-fade-up space-y-4">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <button
           type="button"
@@ -151,11 +142,11 @@ function SetupView({
       </div>
 
       <TokenStep token={token} onToken={onToken} />
-      <ConfigStep ide={ide} token={token} />
-      <RestartStep />
+      <InstallStep ide={ide} token={token} />
+      <TestStep token={token} />
 
       <a
-        href="/docs/troubleshooting"
+        href="/docs/mcp"
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-sm text-secondary transition-colors duration-150 hover:text-primary"
@@ -167,7 +158,6 @@ function SetupView({
   );
 }
 
-/** Outlined step circle. Switches to an accent check once completed. */
 function StepCircle({ step, done }: { step: number; done: boolean }): React.ReactElement {
   return (
     <span
@@ -195,7 +185,7 @@ function StepBox({
     <section className="rounded-xl border border-surface-border bg-surface p-6">
       <div className="mb-4 flex items-center gap-3">
         <StepCircle step={step} done={done} />
-        <h2 className="text-base font-semibold text-primary">{title}</h2>
+        <h2 className="text-[15px] font-semibold text-primary">{title}</h2>
       </div>
       {children}
     </section>
@@ -239,19 +229,7 @@ function TokenStep({
   return (
     <StepBox step={1} title="Name and generate your token" done={Boolean(token)}>
       {token ? (
-        <div>
-          <div className="flex items-start gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/10 px-3 py-2.5 text-xs text-risk-medium">
-            <TriangleAlert size={15} className="mt-0.5 shrink-0" />
-            <span>
-              This is the only time this token is shown. Copy it now. If you lose it, generate a
-              new one.
-            </span>
-          </div>
-          <div className="mt-3">
-            <span className="text-xs uppercase tracking-wider text-muted">Your token</span>
-            <CopyField className="mt-1.5" value={token} />
-          </div>
-        </div>
+        <TokenReveal token={token} />
       ) : (
         <div>
           <p className="text-sm leading-relaxed text-secondary">
@@ -277,7 +255,7 @@ function TokenStep({
             type="button"
             onClick={generate}
             disabled={busy}
-            className="mt-4 inline-flex items-center rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-accent-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-senix btn-senix-primary mt-4 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? 'Generating' : 'Generate token'}
           </button>
@@ -287,43 +265,180 @@ function TokenStep({
   );
 }
 
-function ConfigStep({ ide, token }: { ide: Ide; token: string | null }): React.ReactElement {
-  const config = buildConfig(token);
-
+function InstallStep({ ide, token }: { ide: Ide; token: string | null }): React.ReactElement {
   return (
-    <StepBox step={2} title="Copy your config">
+    <StepBox step={2} title="Install Senix">
       {!token && (
         <p className="mb-3 text-sm leading-relaxed text-secondary">
-          Generate a token in step 1 first. It will be filled into the snippet below.
+          Generate a token in step 1 first. It is filled into the install action below.
         </p>
       )}
-      <div className="relative">
-        <pre className="overflow-x-auto rounded-lg bg-surface-raised p-4 pr-12 font-mono text-xs leading-relaxed text-secondary">
-          {config}
-        </pre>
-        <div className="absolute right-2 top-2">
-          <CopyButton value={config} iconOnly />
-        </div>
-      </div>
-      <p className="mt-3 font-mono text-xs text-muted">{ide.location}</p>
-      {ide.docsUrl && (
-        <a
-          href={ide.docsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-xs text-secondary transition-colors duration-150 hover:text-primary"
-        >
-          Open the Antigravity docs
-          <ArrowRight size={12} />
-        </a>
+      {ide.key === 'cursor' && <CursorInstall token={token} location={ide.location} />}
+      {ide.key === 'claude-code' && <ClaudeCodeInstall token={token} />}
+      {ide.key === 'windsurf' && (
+        <ConfigInstall config={windsurfConfigJson(token)} location={ide.location} />
+      )}
+      {ide.key === 'antigravity' && (
+        <ConfigInstall config={genericConfigJson(token)} location={ide.location} docsUrl={ide.docsUrl} />
       )}
     </StepBox>
   );
 }
 
-function RestartStep(): React.ReactElement {
+function CursorInstall({
+  token,
+  location,
+}: {
+  token: string | null;
+  location: string;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
   return (
-    <StepBox step={3} title="Restart your IDE and test">
+    <div>
+      <p className="text-sm leading-relaxed text-secondary">
+        One click — opens Cursor and installs Senix with your token already set.
+      </p>
+      <a
+        href={token ? cursorDeepLink(token) : undefined}
+        aria-disabled={!token}
+        onClick={(e) => {
+          if (!token) e.preventDefault();
+        }}
+        className={`btn-senix btn-senix-primary mt-4 ${
+          token ? '' : 'pointer-events-none opacity-50'
+        }`}
+      >
+        <ArrowRight size={15} />
+        Add to Cursor
+      </a>
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="mt-4 block text-xs text-secondary transition-colors hover:text-primary"
+      >
+        {open ? 'Hide manual config' : 'Or paste the config manually'}
+      </button>
+      {open && (
+        <div className="mt-3">
+          <ConfigBlock config={cursorConfigJson(token)} />
+          <p className="mt-3 font-mono text-xs text-muted">{location}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClaudeCodeInstall({ token }: { token: string | null }): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const command = claudeCodeCliCommand(token);
+  return (
+    <div>
+      <p className="text-sm leading-relaxed text-secondary">
+        Copy this command, paste it in your terminal, then restart Claude Code.
+      </p>
+      <div className="relative mt-4">
+        <pre className="overflow-x-auto rounded-lg bg-surface-raised p-4 pr-12 font-mono text-xs leading-relaxed text-secondary">
+          <span className="mr-2 select-none text-muted">
+            <Terminal size={13} className="inline" />
+          </span>
+          {command}
+        </pre>
+        <div className="absolute right-2 top-2">
+          <CopyButton value={command} iconOnly />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="mt-4 block text-xs text-secondary transition-colors hover:text-primary"
+      >
+        {open ? 'Hide manual config' : 'Or edit .mcp.json manually'}
+      </button>
+      {open && (
+        <div className="mt-3">
+          <ConfigBlock config={claudeCodeConfigJson(token)} />
+          <p className="mt-3 font-mono text-xs text-muted">.mcp.json (project) or your global Claude Code config</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConfigInstall({
+  config,
+  location,
+  docsUrl,
+}: {
+  config: string;
+  location: string;
+  docsUrl?: string;
+}): React.ReactElement {
+  return (
+    <div>
+      <p className="text-sm leading-relaxed text-secondary">
+        Copy this config into your MCP settings, then restart your editor.
+      </p>
+      <div className="mt-4">
+        <ConfigBlock config={config} />
+      </div>
+      <p className="mt-3 font-mono text-xs text-muted">{location}</p>
+      {docsUrl && (
+        <a
+          href={docsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-flex items-center gap-1 text-xs text-secondary transition-colors duration-150 hover:text-primary"
+        >
+          Open the editor&apos;s MCP docs
+          <ArrowRight size={12} />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function ConfigBlock({ config }: { config: string }): React.ReactElement {
+  return (
+    <div className="relative">
+      <pre className="overflow-x-auto rounded-lg bg-surface-raised p-4 pr-12 font-mono text-xs leading-relaxed text-secondary">
+        {config}
+      </pre>
+      <div className="absolute right-2 top-2">
+        <CopyButton value={config} iconOnly />
+      </div>
+    </div>
+  );
+}
+
+type TestState = 'idle' | 'testing' | 'connected' | 'failed';
+
+function TestStep({ token }: { token: string | null }): React.ReactElement {
+  const [state, setState] = useState<TestState>('idle');
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function test(): Promise<void> {
+    if (!token) return;
+    setState('testing');
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/mcp/test?token=${encodeURIComponent(token)}`);
+      const data = (await res.json()) as { connected?: boolean; error?: string };
+      if (res.ok && data.connected) {
+        setState('connected');
+      } else {
+        setState('failed');
+        setMessage(data.error ?? 'Not connected yet.');
+      }
+    } catch {
+      setState('failed');
+      setMessage('Could not reach Senix. Check your connection and try again.');
+    }
+  }
+
+  return (
+    <StepBox step={3} title="Restart your IDE and test" done={state === 'connected'}>
       <div className="space-y-3 text-sm leading-relaxed text-secondary">
         <p className="flex items-start gap-2">
           <RotateCw size={15} className="mt-0.5 shrink-0 text-muted" />
@@ -331,34 +446,45 @@ function RestartStep(): React.ReactElement {
           restart.
         </p>
         <p>
-          Then type this in the chat panel:{' '}
+          Then ask the chat:{' '}
           <span className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-primary">
             Use Senix to review my changes.
           </span>
         </p>
-        <p className="text-muted">If Senix runs and returns a review, you are connected.</p>
       </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={test}
+          disabled={!token || state === 'testing'}
+          className="btn-senix btn-senix-secondary disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {state === 'testing' ? <Loader2 size={15} className="animate-spin" /> : null}
+          {state === 'testing' ? 'Testing' : 'Test connection'}
+        </button>
+
+        {state === 'connected' && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent-hover">
+            <Check size={15} />
+            Connected
+          </span>
+        )}
+        {state === 'failed' && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-risk-high/30 bg-risk-high/10 px-3 py-1.5 text-sm font-medium text-risk-high">
+            <TriangleAlert size={15} />
+            Not connected yet
+          </span>
+        )}
+      </div>
+      {state === 'failed' && message && <p className="mt-2 text-xs text-muted">{message}</p>}
+      {!token && (
+        <p className="mt-2 text-xs text-muted">Generate a token in step 1 to enable the test.</p>
+      )}
     </StepBox>
   );
 }
 
-/** A read-only value field with a copy button beside it. */
-function CopyField({ value, className }: { value: string; className?: string }): React.ReactElement {
-  return (
-    <div className={`flex items-center gap-2 ${className ?? ''}`}>
-      <input
-        type="text"
-        readOnly
-        value={value}
-        onFocus={(e) => e.currentTarget.select()}
-        className="min-w-0 flex-1 rounded-lg border border-surface-border bg-surface-raised p-3 font-mono text-sm text-primary"
-      />
-      <CopyButton value={value} />
-    </div>
-  );
-}
-
-/** Stateless copy-to-clipboard button with a transient "Copied" state. */
 function CopyButton({
   value,
   iconOnly = false,
@@ -374,7 +500,7 @@ function CopyButton({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard access can be blocked; the field is selectable as a fallback.
+      // Clipboard access can be blocked; the block is selectable as a fallback.
     }
   }
 

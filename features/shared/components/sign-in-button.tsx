@@ -138,18 +138,18 @@ function buttonClass(variant: SignInVariant): string {
 
   switch (variant) {
     case 'text':
-      return `${base} text-sm text-zinc-400 hover:text-zinc-100`;
+      return `${base} text-sm text-secondary hover:text-primary`;
     case 'hero':
-      return `${base} px-5 py-3 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 font-medium text-sm`;
+      return `${base} btn-senix btn-senix-primary px-5 !h-auto py-3 text-sm`;
     case 'secondary':
-      return `${base} px-4 py-2.5 rounded-md border border-zinc-700 hover:border-zinc-600 text-zinc-100 hover:bg-zinc-800/40 font-medium text-sm`;
+      return `${base} btn-senix btn-senix-secondary px-4 !h-auto py-2.5 text-sm`;
     case 'mobile-primary':
-      return `${base} w-full py-3 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 font-medium`;
+      return `${base} btn-senix btn-senix-primary w-full !h-auto py-3`;
     case 'mobile-secondary':
-      return `${base} w-full py-3 rounded-md border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100`;
+      return `${base} btn-senix btn-senix-secondary w-full !h-auto py-3`;
     case 'primary':
     default:
-      return `${base} px-3.5 py-1.5 rounded-md bg-green-500 hover:bg-green-400 text-zinc-950 font-medium text-sm`;
+      return `${base} btn-senix btn-senix-primary px-3.5 !h-auto py-1.5 text-sm`;
   }
 }
 
