@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { DocH1, DocH2, DocLead, DocP, DocUL } from '@/components/docs/doc-elements';
+import { DocH1, DocH2, DocLead, DocP, DocUL } from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'API reference — Senix Docs',

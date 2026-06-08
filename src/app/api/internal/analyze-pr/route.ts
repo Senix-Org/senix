@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processAnalyzePr } from '../../../../../worker/handlers/analyze-pr';
-import type { JobPayloadMap } from '@/lib/queue';
+import { processAnalyzePr } from '@features/review-queue/worker/analyze-pr';
+import type { JobPayloadMap } from '@features/review-queue/queue';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

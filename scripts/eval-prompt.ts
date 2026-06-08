@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { supabaseAdmin } from '../src/lib/supabase';
-import { analyzePR } from '../src/lib/llm';
-import type { FileStructuralDiff } from '../src/lib/structural-diff';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { analyzePR } from '@features/ai-engine/llm';
+import type { FileStructuralDiff } from '@features/ai-engine/structural-diff';
 
 type EvalAnalysisRow = {
   id: string;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { createWhopCheckoutLink, whopProductIdForPlan } from '@/lib/whop';
-import type { PaidPlanName } from '@/lib/whop';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { createWhopCheckoutLink, whopProductIdForPlan } from '@features/billing/whop';
+import type { PaidPlanName } from '@features/billing/whop';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -6,10 +6,10 @@ import {
   GitPullRequest,
   MessageSquareCode,
 } from 'lucide-react';
-import { SiteNav } from '@/components/site-nav';
-import { SiteFooter } from '@/components/site-footer';
-import { Reveal, RevealItem, RevealStagger } from '@/components/reveal';
-import SignInButton from '@/components/sign-in-button';
+import { SiteNav } from '@features/shared/components/site-nav';
+import { SiteFooter } from '@features/shared/components/site-footer';
+import { Reveal, RevealItem, RevealStagger } from '@features/shared/components/reveal';
+import SignInButton from '@features/shared/components/sign-in-button';
 
 type HomeSearchParams = { code?: string; next?: string };
 

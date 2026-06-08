@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { currentAppUserId, formatTokenDate, mintMcpToken } from '@/lib/mcp-tokens';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { currentAppUserId, formatTokenDate, mintMcpToken } from '@features/auth/mcp-tokens';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

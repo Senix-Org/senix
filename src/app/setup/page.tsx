@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { getUserPlan, syncReposConnected } from '@/lib/plan-limits';
-import { SiteNav } from '@/components/site-nav';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { getUserPlan, syncReposConnected } from '@features/billing/plan-limits';
+import { SiteNav } from '@features/shared/components/site-nav';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

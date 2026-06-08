@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@features/shared/supabase';
 import RequeueButton from './requeue-button';
 
 export const dynamic = 'force-dynamic';

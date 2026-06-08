@@ -1,7 +1,7 @@
 import 'dotenv/config';
-   import { fetchPRFiles, fetchFileContent } from '../src/server/github-diff';
-   import { diffFile } from '../src/lib/structural-diff';
-   import { detectLanguage } from '../src/lib/parser';
+   import { fetchPRFiles, fetchFileContent } from '@features/github-integration/github-diff';
+   import { diffFile } from '@features/ai-engine/structural-diff';
+   import { detectLanguage } from '@features/ai-engine/parser';
    
    async function main() {
      // Edit these for your test case

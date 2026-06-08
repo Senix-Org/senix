@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { CreditCard, GitPullRequest, Loader2, Sparkles, X, Zap } from 'lucide-react';
-import { DailyBarChart, type DailyBucket } from '@/components/billing/daily-bar-chart';
-import { RiskMixDonut, type RiskMix } from '@/components/billing/risk-mix-donut';
-import { TopReposList, type RepoUsage } from '@/components/billing/top-repos-list';
-import type { UsageAnalysis } from '@/lib/billing-usage';
+import { DailyBarChart, type DailyBucket } from '@features/billing/components/daily-bar-chart';
+import { RiskMixDonut, type RiskMix } from '@features/billing/components/risk-mix-donut';
+import { TopReposList, type RepoUsage } from '@features/billing/components/top-repos-list';
+import type { UsageAnalysis } from '@features/billing/billing-usage';
 
 export type BillingPlanName = 'free' | 'starter' | 'team' | 'pro';
 export type BillingPlanStatus = 'active' | 'trialing' | 'cancelled' | 'past_due';

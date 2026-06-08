@@ -1,6 +1,6 @@
-import { SiteNav } from '@/components/site-nav';
-import { SiteFooter } from '@/components/site-footer';
-import { Reveal, RevealItem, RevealStagger } from '@/components/reveal';
+import { SiteNav } from '@features/shared/components/site-nav';
+import { SiteFooter } from '@features/shared/components/site-footer';
+import { Reveal, RevealItem, RevealStagger } from '@features/shared/components/reveal';
 
 type Release = {
   date: string;

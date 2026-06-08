@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { currentAppUserId } from '@/lib/mcp-tokens';
-import { PLAN_LIMITS, type PlanName } from '@/lib/plan-limits';
-import { supabaseAdmin } from '@/lib/supabase';
-import { cancelWhopMembership } from '@/lib/whop';
+import { currentAppUserId } from '@features/auth/mcp-tokens';
+import { PLAN_LIMITS, type PlanName } from '@features/billing/plan-limits';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { cancelWhopMembership } from '@features/billing/whop';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

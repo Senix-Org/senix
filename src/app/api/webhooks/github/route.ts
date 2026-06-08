@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-   import { verifyGithubSignature } from '@/lib/github-webhook';
-   import { supabaseAdmin } from '@/lib/supabase';
-   import { routeEvent } from '@/server/handlers';
-   
+   import { verifyGithubSignature } from '@features/webhook/signature';
+   import { supabaseAdmin } from '@features/shared/supabase';
+   import { routeEvent } from '@features/webhook/route-event';
+   import { isDuplicateDelivery } from '@features/webhook/idempotency';
+
    export const runtime = 'nodejs';
    export const dynamic = 'force-dynamic';
    
@@ -44,7 +45,14 @@ import { NextRequest, NextResponse } from 'next/server';
          { status: 401 }
        );
      }
-   
+
+     // Idempotency: GitHub retries deliveries with the same delivery id.
+     // If we've already processed this id, skip routing so we never produce
+     // a duplicate analysis or a duplicate PR comment.
+     if (await isDuplicateDelivery(deliveryId)) {
+       return NextResponse.json({ ok: true, deduped: true });
+     }
+
      // Route to handler. Always return 200 to GitHub even if handler throws —
      // we don't want GitHub to retry endlessly on bugs in our code.
      let result = 'unrouted';

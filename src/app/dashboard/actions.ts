@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { supabaseAdmin } from '@features/shared/supabase';
 
 type ToggleResult = { ok: true; enabled: boolean } | { ok: false; error: string };
 

@@ -10,7 +10,7 @@ import {
   CodeBlock,
   InlineCode,
   DocLink,
-} from '@/components/docs/doc-elements';
+} from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'MCP integration for IDEs — Senix Docs',

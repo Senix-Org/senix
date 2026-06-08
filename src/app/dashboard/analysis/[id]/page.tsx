@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight } from 'lucide-react';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { Reveal } from '@/components/reveal';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { Reveal } from '@features/shared/components/reveal';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

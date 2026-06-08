@@ -6,7 +6,7 @@ import {
   DocP,
   DocUL,
   DocCard,
-} from '@/components/docs/doc-elements';
+} from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'Welcome to Senix — Docs',

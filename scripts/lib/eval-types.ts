@@ -1,6 +1,6 @@
-import type { FileStructuralDiff } from '../../src/lib/structural-diff';
-import type { AnalysisResult } from '../../src/lib/llm/types';
-import type { PrMeta } from '../../src/lib/prompts/pr-analysis';
+import type { FileStructuralDiff } from '@features/ai-engine/structural-diff';
+import type { AnalysisResult } from '@features/ai-engine/llm/types';
+import type { PrMeta } from '@features/ai-engine/prompts/pr-analysis';
 
 export type ExpectedRiskLevel = 'low' | 'medium' | 'high';
 

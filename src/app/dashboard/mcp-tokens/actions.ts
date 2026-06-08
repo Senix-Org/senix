@@ -2,8 +2,8 @@
 
 import { createHash, randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { supabaseAdmin } from '@features/shared/supabase';
 
 const TOKEN_PREFIX = 'sk_mcp_';
 const MIN_NAME_LEN = 2;

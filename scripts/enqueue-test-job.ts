@@ -1,6 +1,6 @@
 import 'dotenv/config';
-   import { enqueue, queueStats } from '../src/lib/queue';
-   import { supabaseAdmin } from '../src/lib/supabase';
+   import { enqueue, queueStats } from '@features/review-queue/queue';
+   import { supabaseAdmin } from '@features/shared/supabase';
    
    async function main() {
      // Find the most recent analysis row that's still queued

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { SiteNav } from '@/components/site-nav';
-import { SiteFooter } from '@/components/site-footer';
+import { SiteNav } from '@features/shared/components/site-nav';
+import { SiteFooter } from '@features/shared/components/site-footer';
 
 /**
  * Brand-consistent 404 page. Same nav and footer as the rest of the

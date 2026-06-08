@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { currentAppUserId } from '@/lib/mcp-tokens';
-import { getUserPlan, PLAN_LIMITS } from '@/lib/plan-limits';
-import { getBillingUsage } from '@/lib/billing-usage';
-import { supabaseAdmin } from '@/lib/supabase';
+import { currentAppUserId } from '@features/auth/mcp-tokens';
+import { getUserPlan, PLAN_LIMITS } from '@features/billing/plan-limits';
+import { getBillingUsage } from '@features/billing/billing-usage';
+import { supabaseAdmin } from '@features/shared/supabase';
 import { BillingClient, type BillingPlanData, type BillingTier } from './billing-client';
 
 export const dynamic = 'force-dynamic';

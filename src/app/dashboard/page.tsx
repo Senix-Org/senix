@@ -1,7 +1,7 @@
 import { GitPullRequest } from 'lucide-react';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { RecentAnalyses } from '@/components/dashboard/recent-analyses';
-import type { AnalysisCardData } from '@/components/dashboard/analysis-card';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { RecentAnalyses } from '@features/dashboard/components/recent-analyses';
+import type { AnalysisCardData } from '@features/dashboard/components/analysis-card';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

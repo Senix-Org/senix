@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { supabaseAdmin } from '@/lib/supabase';
-import { currentAppUserId } from '@/lib/mcp-tokens';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { currentAppUserId } from '@features/auth/mcp-tokens';
 
 /**
  * Server action backing the "Revoke" button in the dashboard token list.

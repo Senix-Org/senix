@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { queueStats } from '@/lib/queue';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { queueStats } from '@features/review-queue/queue';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { planForWhopProductId, verifyWhopSignature } from '@/lib/whop';
-import type { PlanName, PlanStatus } from '@/lib/plan-limits';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { planForWhopProductId, verifyWhopSignature } from '@features/billing/whop';
+import type { PlanName, PlanStatus } from '@features/billing/plan-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

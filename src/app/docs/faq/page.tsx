@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { DocH1, DocLead, DocLink } from '@/components/docs/doc-elements';
+import { DocH1, DocLead, DocLink } from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'Frequently asked questions — Senix Docs',

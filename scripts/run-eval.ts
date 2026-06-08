@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { analyzePR } from '../src/lib/llm';
+import { analyzePR } from '@features/ai-engine/llm';
 import type { EvalCase, EvalResult, EvalRun } from './lib/eval-types';
 import { MAX_SCORE_PER_CASE } from './lib/eval-types';
 

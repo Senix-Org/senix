@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { DocH1, DocLead, DocP, CodeBlock } from '@/components/docs/doc-elements';
+import { DocH1, DocLead, DocP, CodeBlock } from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'Risk flag reference — Senix Docs',

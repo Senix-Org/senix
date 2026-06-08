@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { DashboardSidebar } from '@/components/dashboard/sidebar';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { DashboardSidebar } from '@features/dashboard/components/sidebar';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

@@ -1,8 +1,8 @@
 import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { formatShippingBrief, runAnalysis } from '@/lib/analyze-changes';
-import { checkReviewLimit } from '@/lib/plan-limits';
+import { supabaseAdmin } from '@features/shared/supabase';
+import { formatShippingBrief, runAnalysis } from '@features/ai-engine/analyze-changes';
+import { checkReviewLimit } from '@features/billing/plan-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

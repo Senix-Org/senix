@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeFileChanges, formatShippingBrief } from '@/lib/analyze-changes';
-import { diffToChanges } from '@/lib/diff-to-changes';
-import { checkPlaygroundRateLimit, clientIp } from '@/lib/playground-rate-limit';
+import { analyzeFileChanges, formatShippingBrief } from '@features/ai-engine/analyze-changes';
+import { diffToChanges } from '@features/ai-engine/diff-to-changes';
+import { checkPlaygroundRateLimit, clientIp } from '@features/billing/playground-rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

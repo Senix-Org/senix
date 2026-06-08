@@ -7,7 +7,7 @@ import {
   DocOL,
   InlineCode,
   DocLink,
-} from '@/components/docs/doc-elements';
+} from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'Configuration — Senix Docs',

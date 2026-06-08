@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { SiteNav } from '@/components/site-nav';
-import { SiteFooter } from '@/components/site-footer';
-import { Reveal } from '@/components/reveal';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { Playground } from '@/components/playground/playground';
+import { SiteNav } from '@features/shared/components/site-nav';
+import { SiteFooter } from '@features/shared/components/site-footer';
+import { Reveal } from '@features/shared/components/reveal';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { Playground } from '@features/ai-engine/components/playground';
 
 export const metadata: Metadata = {
   title: 'Playground — Senix',

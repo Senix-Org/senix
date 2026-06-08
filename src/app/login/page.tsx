@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import AutoSignIn from '@/components/auto-sign-in';
-import { SiteNav } from '@/components/site-nav';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import AutoSignIn from '@features/auth/components/auto-sign-in';
+import { SiteNav } from '@features/shared/components/site-nav';
 
 export const dynamic = 'force-dynamic';
 

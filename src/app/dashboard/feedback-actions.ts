@@ -1,8 +1,8 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { supabaseAdmin } from '@features/shared/supabase';
 
 type Category = 'bug' | 'feature' | 'question' | 'other';
 

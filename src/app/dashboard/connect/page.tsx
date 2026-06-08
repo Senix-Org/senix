@@ -1,4 +1,4 @@
-import { ConnectIde } from '@/components/connect/connect-ide';
+import { ConnectIde } from '@features/dashboard/components/connect-ide';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

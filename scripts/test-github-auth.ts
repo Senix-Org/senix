@@ -1,5 +1,5 @@
 import 'dotenv/config';
-   import { getAppOctokit } from '../src/lib/github-app';
+   import { getAppOctokit } from '@features/github-integration/github-app';
    
    async function main() {
      const app = getAppOctokit();

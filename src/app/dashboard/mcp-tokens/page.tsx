@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { Reveal } from '@/components/reveal';
-import { McpTokenManager, type McpTokenView } from '@/components/mcp-tokens/mcp-token-manager';
+import { createServerSupabaseClient } from '@features/shared/supabase-server';
+import { Reveal } from '@features/shared/components/reveal';
+import { McpTokenManager, type McpTokenView } from '@features/dashboard/components/mcp-token-manager';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

@@ -8,7 +8,7 @@ import {
   DocOL,
   DocTable,
   InlineCode,
-} from '@/components/docs/doc-elements';
+} from '@features/shared/components/docs/doc-elements';
 
 export const metadata: Metadata = {
   title: 'Installing the GitHub App — Senix Docs',

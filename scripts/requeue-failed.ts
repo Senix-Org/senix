@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { enqueue } from '../src/lib/queue';
-import { supabaseAdmin } from '../src/lib/supabase';
+import { enqueue } from '@features/review-queue/queue';
+import { supabaseAdmin } from '@features/shared/supabase';
 
 type FailedAnalysisRow = {
   id: string;

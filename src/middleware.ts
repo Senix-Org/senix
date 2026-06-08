@@ -20,12 +20,18 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Basic Auth gate for /internal/*. Mirrors the previous behaviour: if
- * `INTERNAL_PASSWORD` is unset we fail open (dev convenience).
+ * Basic Auth gate for /internal/*. Fails CLOSED: if `INTERNAL_PASSWORD`
+ * is unset, every request is denied rather than silently allowed. A
+ * misconfiguration must never expose internal tooling to the public.
  */
-function enforceInternalBasicAuth(req: NextRequest): NextResponse {
+export function enforceInternalBasicAuth(req: NextRequest): NextResponse {
   const password = process.env.INTERNAL_PASSWORD;
-  if (!password) return NextResponse.next();
+  if (!password) {
+    return new NextResponse('Internal access is not configured.', {
+      status: 401,
+      headers: { 'WWW-Authenticate': 'Basic realm="Internal"' },
+    });
+  }
 
   const auth = req.headers.get('authorization');
   if (auth) {

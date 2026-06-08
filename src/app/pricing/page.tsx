@@ -1,8 +1,8 @@
 import { Check } from 'lucide-react';
-import { SiteNav } from '@/components/site-nav';
-import { SiteFooter } from '@/components/site-footer';
-import { Reveal, RevealItem, RevealStagger } from '@/components/reveal';
-import { PLAN_LIMITS } from '@/lib/plan-limits';
+import { SiteNav } from '@features/shared/components/site-nav';
+import { SiteFooter } from '@features/shared/components/site-footer';
+import { Reveal, RevealItem, RevealStagger } from '@features/shared/components/reveal';
+import { PLAN_LIMITS } from '@features/billing/plan-limits';
 import { Faq } from './faq';
 import { PricingCheckoutButton } from './pricing-checkout-button';
 

@@ -1,4 +1,4 @@
-import { diffFile } from '../src/lib/structural-diff';
+import { diffFile } from '@features/ai-engine/structural-diff';
    
    console.log('\n\n=== Structural Diff ===');
    

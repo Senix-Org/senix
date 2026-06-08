@@ -1,5 +1,5 @@
-import { SiteNav } from '@/components/site-nav';
-import { DocsSidebar } from '@/components/docs/docs-sidebar';
+import { SiteNav } from '@features/shared/components/site-nav';
+import { DocsSidebar } from '@features/shared/components/docs/docs-sidebar';
 
 /**
  * Docs shell. The viewport is split into a non-scrolling frame (SiteNav +

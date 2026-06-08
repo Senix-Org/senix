@@ -8,10 +8,9 @@ RUN npm ci --omit=dev && npm install --no-save tsx
 
 # Copy only the worker- and library-relevant source.
 COPY tsconfig.json ./
-COPY worker ./worker
-COPY src ./src
+COPY features ./features
 
 ENV NODE_ENV=production
 ENV WORKER_LOG_FORMAT=json
 
-CMD ["npx", "tsx", "worker/index.ts"]
+CMD ["npx", "tsx", "features/review-queue/worker/index.ts"]
