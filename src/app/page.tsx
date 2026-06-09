@@ -47,11 +47,9 @@ const HOW_STEPS = [
 
 const STATS = [
   { value: '30s', label: 'average analysis time' },
-  { value: '94%', label: 'eval accuracy on real PRs' },
+  { value: '4', label: 'AI providers, always reviewing' },
   { value: '$0.01', label: 'average cost per review' },
 ];
-
-const TRUST_LOGOS = ['Acme', 'Northwind', 'Stately', 'Beacon', 'Hyperdrive'];
 
 const FOCUS_ROWS = [
   {
@@ -116,11 +114,11 @@ function Hero(): React.ReactElement {
         aria-hidden
         className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-glow-green pointer-events-none"
       />
-      <div className="relative max-w-5xl mx-auto px-5 sm:px-6 pt-24 sm:pt-32 pb-20 sm:pb-28 text-center">
+      <div className="relative max-w-5xl mx-auto px-5 sm:px-6 pt-28 sm:pt-36 pb-24 text-center">
         <Reveal>
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/60 text-xs text-zinc-400">
             <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
-            Public beta · v0.6.0
+            v1.0
           </span>
         </Reveal>
         <Reveal delay={0.06}>
@@ -132,14 +130,14 @@ function Hero(): React.ReactElement {
         </Reveal>
         <Reveal delay={0.12}>
           <p className="mt-7 text-base sm:text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto">
-            Senix reads every PR your team opens. Get a 3-sentence behavioral summary with risk
-            level posted as a comment within 30 seconds. Built for teams shipping with Cursor,
-            Copilot, and Claude Code.
+            Senix reads every PR your team opens and posts a behavioral summary with risk level as
+            a comment within 30 seconds. Built for teams shipping with Cursor, Copilot, and Claude
+            Code.
           </p>
         </Reveal>
         <Reveal delay={0.18}>
           <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <SignInButton label="Get started free" variant="hero" showArrow />
+            <SignInButton label="Get started free" variant="hero" />
             <Link
               href="#how-it-works"
               className="inline-flex items-center justify-center px-5 py-3 rounded-md border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50 text-zinc-200 font-medium text-sm transition"
@@ -148,7 +146,7 @@ function Hero(): React.ReactElement {
             </Link>
             <Link
               href="/playground"
-              className="group inline-flex items-center justify-center gap-1.5 px-5 py-3 text-sm font-medium text-zinc-400 hover:text-green-400 transition"
+              className="group inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-md text-sm font-medium text-zinc-400 hover:text-green-400 transition"
             >
               Try the playground
               <ArrowRight
@@ -159,21 +157,9 @@ function Hero(): React.ReactElement {
           </div>
         </Reveal>
         <Reveal delay={0.28}>
-          <div className="mt-16">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-600 mb-5">
-              In use at fast-moving teams
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-zinc-500/70">
-              {TRUST_LOGOS.map((name) => (
-                <span
-                  key={name}
-                  className="font-mono text-sm tracking-tight grayscale opacity-70"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          </div>
+          <p className="mt-16 text-sm text-zinc-500">
+            Trusted by developers shipping with AI
+          </p>
         </Reveal>
       </div>
     </section>
@@ -182,7 +168,7 @@ function Hero(): React.ReactElement {
 
 function Showcase(): React.ReactElement {
   return (
-    <section className="relative max-w-5xl mx-auto px-5 sm:px-6 pt-24 pb-20">
+    <section className="relative max-w-5xl mx-auto px-5 sm:px-6 py-24">
       <div
         aria-hidden
         className="absolute inset-x-0 top-0 h-[420px] bg-glow-green opacity-70 pointer-events-none"
@@ -190,7 +176,7 @@ function Showcase(): React.ReactElement {
       <Reveal>
         <div className="text-center mb-10">
           <span className="text-xs font-mono uppercase tracking-[0.2em] text-green-500/80">
-            What reviewers see
+            What you get
           </span>
           <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-zinc-100">
             One comment. Everything they need.
@@ -206,7 +192,7 @@ function Showcase(): React.ReactElement {
 
 function SampleComment(): React.ReactElement {
   return (
-    <article className="relative rounded-xl border border-zinc-200 bg-white text-zinc-900 p-6 sm:p-8 shadow-2xl shadow-green-950/30">
+    <article className="relative rounded-xl border border-zinc-300 bg-white text-zinc-900 p-6 sm:p-8 shadow-2xl shadow-black/40 ring-1 ring-black/5">
       <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b border-zinc-200">
         <div className="flex items-center gap-2 text-sm">
           <span className="size-7 rounded-full bg-zinc-900 grid place-items-center text-white text-xs font-mono">
@@ -297,7 +283,7 @@ function HowItWorks(): React.ReactElement {
           {HOW_STEPS.map(({ n, title, body, Icon }) => (
             <RevealItem
               key={n}
-              className="group relative rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 hover:border-zinc-700 hover:bg-zinc-900/60 transition-colors"
+              className="group relative rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 transition-colors hover:border-green-500/30 hover:bg-zinc-900/60 hover:shadow-[0_0_0_1px_rgba(62,207,142,0.15)]"
             >
               <div
                 aria-hidden
@@ -327,7 +313,7 @@ function BuiltForAI(): React.ReactElement {
               Product
             </span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Built for the new era of code.
+              Built for the way developers ship in 2026.
             </h2>
             <p className="mt-5 text-zinc-400 leading-relaxed">
               Cursor, Copilot, and Claude Code ship code faster than humans can read it. They also
@@ -362,7 +348,7 @@ function BuiltForAI(): React.ReactElement {
 function Stats(): React.ReactElement {
   return (
     <section className="border-y border-zinc-800/40 bg-zinc-900/30">
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24">
         <RevealStagger className="grid grid-cols-1 sm:grid-cols-3 gap-8">
           {STATS.map(({ value, label }) => (
             <RevealItem
@@ -389,7 +375,7 @@ function FinalCta(): React.ReactElement {
         aria-hidden
         className="absolute -top-20 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-glow-green opacity-90 pointer-events-none"
       />
-      <div className="relative max-w-3xl mx-auto px-5 sm:px-6 py-28 text-center">
+      <div className="relative max-w-3xl mx-auto px-5 sm:px-6 py-24 text-center">
         <Reveal>
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
             Stop reading every line.
@@ -399,16 +385,11 @@ function FinalCta(): React.ReactElement {
         </Reveal>
         <Reveal delay={0.08}>
           <p className="mt-6 text-zinc-400 leading-relaxed">
-            Free during beta. No credit card. Two minutes from install to your first review.
+            Two minutes from install to your first review.
           </p>
         </Reveal>
         <Reveal delay={0.16}>
-          <SignInButton
-            label="Get started free"
-            variant="hero"
-            showArrow
-            className="mt-9 px-6"
-          />
+          <SignInButton label="Get started free" variant="hero" className="mt-9 px-6" />
         </Reveal>
       </div>
     </section>

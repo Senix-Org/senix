@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import SignInButton from './sign-in-button';
 import { MobileMenu } from './site-nav-mobile';
+import { StickyHeader } from './sticky-header';
 
 export type NavLink = {
   label: string;
@@ -34,7 +35,7 @@ export function SiteNav({ rightSlot }: SiteNavProps = {}): React.ReactElement {
   const right = rightSlot ?? <PublicAuthCluster />;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-800/50 bg-zinc-950/70 backdrop-blur-md">
+    <StickyHeader>
       <div className="max-w-6xl mx-auto px-5 sm:px-6 h-14 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center gap-2 shrink-0 group">
           <img
@@ -61,7 +62,7 @@ export function SiteNav({ rightSlot }: SiteNavProps = {}): React.ReactElement {
 
         <MobileMenu links={PRIMARY_NAV_LINKS} />
       </div>
-    </header>
+    </StickyHeader>
   );
 }
 
