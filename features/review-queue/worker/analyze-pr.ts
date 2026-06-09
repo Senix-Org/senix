@@ -8,15 +8,15 @@ import { formatPRComment } from '@features/ai-engine/format-comment';
 import { upsertPRComment } from '@features/github-integration/github-comments';
 import type { JobPayloadMap } from '@features/review-queue/queue';
 import { claimAnalysis } from '@features/review-queue/queue';
+import { getAppBaseUrl } from '@features/shared/mcp-config';
 
 const MAX_FILES_FOR_STRUCTURAL_DIFF = 50;
-const DEFAULT_DASHBOARD_URL = 'https://senix.vercel.app';
 
 type PrRow = { title: string | null; author_login: string | null };
 type InstallationStatusRow = { uninstalled_at: string | null };
 type PriorCommentRow = { github_comment_id: number | null };
 type CommentOutcome = { commentId: number | null; commentUrl: string | null; postError: string | null };
-type CommentContext = { pullRequestId: string; installationId: number; owner: string; repo: string; prNumber: number };
+type CommentContext = { analysisId: string; pullRequestId: string; installationId: number; owner: string; repo: string; prNumber: number };
 
 /**
  * Process an `analyze-pr` job: fetch the PR diff, build a per-file
@@ -131,7 +131,7 @@ export async function processAnalyzePr(
     }
 
     const comment: CommentOutcome = llmResult
-      ? await postPRComment({ pullRequestId, installationId, owner, repo, prNumber }, llmResult)
+      ? await postPRComment({ analysisId, pullRequestId, installationId, owner, repo, prNumber }, llmResult)
       : { commentId: null, commentUrl: null, postError: null };
 
     const errorMessage =
@@ -179,8 +179,10 @@ async function postPRComment(
   ctx: CommentContext,
   llmResult: AnalysisResult
 ): Promise<CommentOutcome> {
-  if (process.env.POST_PR_COMMENTS !== 'true') {
-    console.log('[worker] skipping PR comment (POST_PR_COMMENTS != true)');
+  // Posting PR comments is the core product, so it is on by default. Only an
+  // explicit POST_PR_COMMENTS=false disables it (useful for local/dev runs).
+  if (process.env.POST_PR_COMMENTS === 'false') {
+    console.log('[worker] skipping PR comment (POST_PR_COMMENTS=false)');
     return { commentId: null, commentUrl: null, postError: null };
   }
 
@@ -195,7 +197,7 @@ async function postPRComment(
   const prior = (priorRow ?? null) as unknown as PriorCommentRow | null;
   const existingCommentId = prior?.github_comment_id ?? null;
 
-  const dashboardUrl = `${process.env.DASHBOARD_URL || DEFAULT_DASHBOARD_URL}/internal/test`;
+  const dashboardUrl = `${getAppBaseUrl()}/dashboard/analysis/${ctx.analysisId}`;
   const body = formatPRComment({
     summary: llmResult.summary,
     riskLevel: llmResult.riskLevel,

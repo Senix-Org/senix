@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { formatRelativeTime } from '@features/shared/relative-time';
-import { generateMcpToken, revokeMcpToken } from '@/app/dashboard/mcp-tokens/actions';
+import { generateMcpToken, revokeMcpToken } from '@/app/dashboard/tokens/actions';
 import { TokenReveal } from '@features/dashboard/components/token-reveal';
 
 export type McpTokenView = {

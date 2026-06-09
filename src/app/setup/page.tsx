@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from '@features/shared/supabase-server';
 import { supabaseAdmin } from '@features/shared/supabase';
 import { getUserPlan, syncReposConnected } from '@features/billing/plan-limits';
 import { SiteNav } from '@features/shared/components/site-nav';
+import { getAppBaseUrl } from '@features/shared/mcp-config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -100,7 +101,7 @@ export default async function SetupPage({
           {blockedRepoCount > 0 && (
             <p className="mt-3 rounded-md border border-red-900/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
               Repo limit reached for your current plan. Upgrade at{' '}
-              https://senix-chi.vercel.app/dashboard
+              {`${getAppBaseUrl()}/dashboard`}
             </p>
           )}
           <Link

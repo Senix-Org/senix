@@ -16,10 +16,15 @@ import { TokenReveal } from '@features/dashboard/components/token-reveal';
 import {
   claudeCodeCliCommand,
   claudeCodeConfigJson,
+  claudeDesktopConfigJson,
   cursorConfigJson,
   cursorDeepLink,
   genericConfigJson,
+  getMcpServerUrl,
+  jetbrainsConfigJson,
+  vscodeConfigJson,
   windsurfConfigJson,
+  zedConfigJson,
 } from '@features/shared/mcp-config';
 
 /**
@@ -35,7 +40,16 @@ import {
 
 const MAX_NAME_LEN = 60;
 
-type IdeKey = 'cursor' | 'antigravity' | 'claude-code' | 'windsurf';
+type IdeKey =
+  | 'cursor'
+  | 'claude-code'
+  | 'windsurf'
+  | 'vscode'
+  | 'zed'
+  | 'claude-desktop'
+  | 'jetbrains'
+  | 'antigravity'
+  | 'other';
 
 type Ide = {
   key: IdeKey;
@@ -65,11 +79,42 @@ const IDES: Ide[] = [
     location: '~/.codeium/windsurf/mcp_config.json',
   },
   {
+    key: 'vscode',
+    name: 'VS Code (Copilot)',
+    badge: 'VS',
+    location: '.vscode/mcp.json in your workspace, or your user settings.json under "mcp".',
+  },
+  {
+    key: 'zed',
+    name: 'Zed',
+    badge: 'Zd',
+    location: 'Zed settings.json (Cmd/Ctrl+, then "Open Settings").',
+  },
+  {
+    key: 'claude-desktop',
+    name: 'Claude Desktop',
+    badge: 'CD',
+    location:
+      '~/Library/Application Support/Claude/claude_desktop_config.json on macOS, %APPDATA%\\Claude\\claude_desktop_config.json on Windows. Requires Node.js for the mcp-remote bridge.',
+  },
+  {
+    key: 'jetbrains',
+    name: 'JetBrains',
+    badge: 'JB',
+    location: 'Settings → Tools → AI Assistant → Model Context Protocol (MCP).',
+  },
+  {
     key: 'antigravity',
     name: 'Antigravity',
     badge: 'Ag',
     location: 'The MCP config file location varies by platform. See the Antigravity docs.',
     docsUrl: 'https://antigravity.google',
+  },
+  {
+    key: 'other',
+    name: 'Other IDE',
+    badge: '··',
+    location: 'Any MCP-compatible client that accepts an HTTP server URL and headers.',
   },
 ];
 
@@ -278,10 +323,65 @@ function InstallStep({ ide, token }: { ide: Ide; token: string | null }): React.
       {ide.key === 'windsurf' && (
         <ConfigInstall config={windsurfConfigJson(token)} location={ide.location} />
       )}
+      {ide.key === 'vscode' && (
+        <ConfigInstall config={vscodeConfigJson(token)} location={ide.location} />
+      )}
+      {ide.key === 'zed' && (
+        <ConfigInstall config={zedConfigJson(token)} location={ide.location} />
+      )}
+      {ide.key === 'claude-desktop' && (
+        <ConfigInstall config={claudeDesktopConfigJson(token)} location={ide.location} />
+      )}
+      {ide.key === 'jetbrains' && (
+        <ConfigInstall config={jetbrainsConfigJson(token)} location={ide.location} />
+      )}
       {ide.key === 'antigravity' && (
         <ConfigInstall config={genericConfigJson(token)} location={ide.location} docsUrl={ide.docsUrl} />
       )}
+      {ide.key === 'other' && <OtherInstall token={token} />}
     </StepBox>
+  );
+}
+
+function OtherInstall({ token }: { token: string | null }): React.ReactElement {
+  return (
+    <div>
+      <p className="text-sm leading-relaxed text-secondary">
+        Paste this URL and header into your IDE&apos;s MCP settings. Most clients accept either
+        the raw endpoint and header below, or the JSON config beneath it.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <div className="mb-1.5 text-xs uppercase tracking-wider text-muted">Server URL</div>
+          <CopyField value={getMcpServerUrl()} />
+        </div>
+        <div>
+          <div className="mb-1.5 text-xs uppercase tracking-wider text-muted">
+            Authorization header
+          </div>
+          <CopyField value={`Authorization: Bearer ${token ?? 'YOUR_TOKEN_HERE'}`} />
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-1.5 text-xs uppercase tracking-wider text-muted">Or JSON config</div>
+        <ConfigBlock config={genericConfigJson(token)} />
+      </div>
+    </div>
+  );
+}
+
+function CopyField({ value }: { value: string }): React.ReactElement {
+  return (
+    <div className="relative">
+      <pre className="overflow-x-auto rounded-lg bg-surface-raised p-3 pr-12 font-mono text-xs leading-relaxed text-secondary">
+        {value}
+      </pre>
+      <div className="absolute right-2 top-1.5">
+        <CopyButton value={value} iconOnly />
+      </div>
+    </div>
   );
 }
 

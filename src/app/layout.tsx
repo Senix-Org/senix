@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getAppBaseUrl } from "@features/shared/mcp-config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 const SITE_TITLE = 'Senix — AI code review for your pull requests';
 const SITE_DESCRIPTION =
   'Open a pull request. Get a 3-sentence behavioral review with risk level, posted as a GitHub comment within seconds. Built for teams using AI coding tools.';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://senix.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? getAppBaseUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

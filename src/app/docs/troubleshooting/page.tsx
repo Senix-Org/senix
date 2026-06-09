@@ -7,6 +7,7 @@ import {
   InlineCode,
   DocLink,
 } from '@features/shared/components/docs/doc-elements';
+import { getMcpServerUrl } from '@features/shared/mcp-config';
 
 export const metadata: Metadata = {
   title: 'Troubleshooting — Senix Docs',
@@ -64,7 +65,7 @@ export default function TroubleshootingPage(): React.ReactElement {
       </DocP>
       <DocP>
         <strong>Fix:</strong> verify the JSON is valid and the <InlineCode>url</InlineCode> is{' '}
-        <InlineCode>https://senix-chi.vercel.app/api/mcp</InlineCode>. Fully restart the IDE
+        <InlineCode>{getMcpServerUrl()}</InlineCode>. Fully restart the IDE
         so it re-reads the config. Check your IDE&apos;s MCP panel for a connection error.
       </DocP>
 

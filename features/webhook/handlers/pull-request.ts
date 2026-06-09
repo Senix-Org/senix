@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@features/shared/supabase';
 import { enqueue, type JobPayloadMap } from '@features/review-queue/queue';
 import { checkReviewLimit } from '@features/billing/plan-limits';
 import { upsertPRComment } from '@features/github-integration/github-comments';
+import { getAppBaseUrl } from '@features/shared/mcp-config';
 import { findRepository } from './lookup';
 
 /**
@@ -14,8 +15,7 @@ import { findRepository } from './lookup';
  * All other actions are ignored. Closed/merged PRs don't need analysis.
  */
 const ACTIONS_WE_HANDLE = new Set(['opened', 'synchronize', 'reopened']);
-const LIMIT_REACHED_COMMENT =
-  'Senix monthly review limit reached. Upgrade at https://senix-chi.vercel.app/dashboard to continue reviewing PRs.';
+const LIMIT_REACHED_COMMENT = `Senix monthly review limit reached. Upgrade at ${getAppBaseUrl()}/dashboard to continue reviewing PRs.`;
 
 type RepositoryRow = {
   id: string;

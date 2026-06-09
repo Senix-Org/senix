@@ -9,6 +9,7 @@ import {
   DocTable,
   InlineCode,
 } from '@features/shared/components/docs/doc-elements';
+import { getAppBaseUrl } from '@features/shared/mcp-config';
 
 export const metadata: Metadata = {
   title: 'Installing the GitHub App — Senix Docs',
@@ -27,7 +28,8 @@ export default function InstallationPage(): React.ReactElement {
       <DocH2>Step-by-step</DocH2>
       <DocOL>
         <li>
-          Sign in to Senix at <InlineCode>senix-chi.vercel.app</InlineCode>.
+          Sign in to Senix at{' '}
+          <InlineCode>{getAppBaseUrl().replace(/^https?:\/\//, '')}</InlineCode>.
         </li>
         <li>
           Click <strong>Install GitHub App</strong> from your dashboard.

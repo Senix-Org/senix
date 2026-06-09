@@ -63,7 +63,7 @@ export async function generateMcpToken(name: string): Promise<GenerateResult> {
     return { ok: false, error: error.message };
   }
 
-  revalidatePath('/dashboard/mcp-tokens');
+  revalidatePath('/dashboard/tokens');
   return { ok: true, token };
 }
 
@@ -100,6 +100,6 @@ export async function revokeMcpToken(id: string): Promise<RevokeResult> {
     return { ok: false, error: error.message };
   }
 
-  revalidatePath('/dashboard/mcp-tokens');
+  revalidatePath('/dashboard/tokens');
   return { ok: true };
 }

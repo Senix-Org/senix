@@ -57,10 +57,56 @@ export function windsurfConfigJson(token: string | null, url: string = getMcpSer
   );
 }
 
-/** Generic url+headers shape (used for Antigravity and other MCP clients). */
+/** Generic url+headers shape (used for Antigravity, JetBrains, other clients). */
 export function genericConfigJson(token: string | null, url: string = getMcpServerUrl()): string {
   return JSON.stringify(
     { mcpServers: { senix: { url, headers: { Authorization: bearer(token) } } } },
+    null,
+    2
+  );
+}
+
+/** VS Code (GitHub Copilot) — top-level `servers` key with an http server. */
+export function vscodeConfigJson(token: string | null, url: string = getMcpServerUrl()): string {
+  return JSON.stringify(
+    { servers: { senix: { type: 'http', url, headers: { Authorization: bearer(token) } } } },
+    null,
+    2
+  );
+}
+
+/** Zed — `context_servers` key. */
+export function zedConfigJson(token: string | null, url: string = getMcpServerUrl()): string {
+  return JSON.stringify(
+    { context_servers: { senix: { url, headers: { Authorization: bearer(token) } } } },
+    null,
+    2
+  );
+}
+
+/** JetBrains AI Assistant — standard `mcpServers` shape. */
+export function jetbrainsConfigJson(token: string | null, url: string = getMcpServerUrl()): string {
+  return genericConfigJson(token, url);
+}
+
+/**
+ * Claude Desktop — it speaks stdio, not HTTP, so it reaches a remote MCP
+ * server through the `mcp-remote` bridge launched via npx. The token is
+ * passed as an Authorization header to the bridge.
+ */
+export function claudeDesktopConfigJson(
+  token: string | null,
+  url: string = getMcpServerUrl()
+): string {
+  return JSON.stringify(
+    {
+      mcpServers: {
+        senix: {
+          command: 'npx',
+          args: ['-y', 'mcp-remote', url, '--header', `Authorization: Bearer ${token ?? TOKEN_PLACEHOLDER}`],
+        },
+      },
+    },
     null,
     2
   );

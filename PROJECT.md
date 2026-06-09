@@ -54,7 +54,7 @@ Note: older docs mention Next 14, shadcn/ui, Clerk, and Anthropic as the main pr
    - Fetches changed files and raw file contents from GitHub.
    - Builds tree-sitter structural diffs for supported files, capped at 50 files.
    - Calls `analyzePR()` from `src/lib/llm/index.ts`.
-   - Optionally posts or updates the PR comment if `POST_PR_COMMENTS=true`.
+   - Posts or updates the PR comment by default (disabled only when `POST_PR_COMMENTS=false`).
    - Stores summary, risk, flags, focus areas, structural metadata, token usage, cost, comment IDs/URLs, and errors on the `analyses` row.
 
 ## MCP Runtime Flow
@@ -83,8 +83,8 @@ Note: older docs mention Next 14, shadcn/ui, Clerk, and Anthropic as the main pr
 - `src/app/api/internal/queue/route.ts`: internal queue/failed-analysis status endpoint.
 - `src/app/api/internal/requeue-failed/route.ts`: requeues failed analyses from the last 24 hours.
 - `src/app/api/mcp/route.ts`: MCP HTTP JSON-RPC route and `analyze_code_changes` tool.
-- `src/app/dashboard/mcp-tokens/page.tsx`: signed-in user's MCP token management page.
-- `src/app/dashboard/mcp-tokens/actions.ts`: generate/revoke MCP token server actions.
+- `src/app/dashboard/tokens/page.tsx`: signed-in user's MCP token management page.
+- `src/app/dashboard/tokens/actions.ts`: generate/revoke MCP token server actions.
 - `src/components/mcp-tokens/mcp-token-manager.tsx`: interactive token list and one-time token display modal.
 - `src/lib/prompts/pr-analysis.ts`: core prompt contract and risk taxonomy.
 - `src/lib/llm/*`: provider adapters and the provider-agnostic analysis contract.
@@ -135,9 +135,9 @@ The route exposes one tool, `analyze_code_changes`, which accepts file path plus
 
 ## PR Comment Behavior
 
-`formatPRComment()` renders a Markdown comment with badges, behavioral summary, optional detected risks, optional focus-area table, and footer metadata. The worker updates the most recent prior Senix comment for the PR when possible, so repeated pushes do not spam new comments. Posting is gated by `POST_PR_COMMENTS=true`.
+`formatPRComment()` renders a Markdown comment with badges, behavioral summary, optional detected risks, optional focus-area table, and footer metadata. The worker updates the most recent prior Senix comment for the PR when possible, so repeated pushes do not spam new comments. Posting is on by default and only disabled when `POST_PR_COMMENTS=false`.
 
-The dashboard URL used in comments defaults to `https://senix.vercel.app`, but the current worker builds links to `/internal/test`; this may be intentional for beta/internal testing or a TODO before customer-facing release.
+The dashboard URL used in comments comes from `getAppBaseUrl()` (`NEXT_PUBLIC_APP_URL`, falling back to the hosted app), and each comment links to that analysis at `/dashboard/analysis/[analysisId]`.
 
 ## Local Commands
 
@@ -196,6 +196,6 @@ Treat these as user or existing work unless you know you made the changes. Do no
 - For webhook/queue/worker bugs, read `src/app/api/webhooks/github/route.ts`, `src/server/handlers/*`, `src/lib/queue.ts`, and `worker/handlers/analyze-pr.ts`.
 - For auth/setup/dashboard bugs, read `src/lib/supabase-server.ts`, `src/middleware.ts`, `src/app/auth/callback/route.ts`, `src/app/setup/page.tsx`, and dashboard files.
 - For analysis quality, read `src/lib/prompts/pr-analysis.ts`, `src/lib/llm/*`, `src/lib/structural-diff.ts`, and eval cases.
-- For MCP behavior, read `src/app/api/mcp/route.ts`, `src/app/dashboard/mcp-tokens/actions.ts`, `src/components/mcp-tokens/mcp-token-manager.tsx`, `docs/migrations/006-mcp-tokens.sql`, `src/lib/llm/types.ts`, `src/lib/structural-diff.ts`, and `src/app/docs/mcp/page.tsx`.
+- For MCP behavior, read `src/app/api/mcp/route.ts`, `src/app/dashboard/tokens/actions.ts`, `src/components/mcp-tokens/mcp-token-manager.tsx`, `docs/migrations/006-mcp-tokens.sql`, `src/lib/llm/types.ts`, `src/lib/structural-diff.ts`, and `src/app/docs/mcp/page.tsx`.
 - For schema/RLS issues, check `docs/schema.md` plus migrations before changing app queries.
 - Keep changes scoped. This project has active product, infra, and prompt surfaces tightly coupled through Supabase rows and queue payloads.
