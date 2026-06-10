@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
@@ -10,6 +11,24 @@ import { SiteNav } from '@features/shared/components/site-nav';
 import { SiteFooter } from '@features/shared/components/site-footer';
 import { Reveal, RevealItem, RevealStagger } from '@features/shared/components/reveal';
 import SignInButton from '@features/shared/components/sign-in-button';
+import { buildMetadata } from '@/lib/seo';
+import { JsonLd, landingSchemas } from '@/components/json-ld';
+
+export const metadata: Metadata = buildMetadata({
+  title: 'Senix — AI Code Review for Pull Requests',
+  path: '/',
+  absoluteTitle: true,
+  keywords: [
+    'ai code review',
+    'pull request review',
+    'github code review',
+    'automated code review',
+    'cursor code review',
+    'claude code review',
+    'vibe coding tools',
+    'pr review bot',
+  ],
+});
 
 type HomeSearchParams = { code?: string; next?: string };
 
@@ -92,6 +111,7 @@ export default async function HomePage({
 
   return (
     <>
+      <JsonLd data={landingSchemas} />
       <SiteNav />
       <main>
         <Hero />

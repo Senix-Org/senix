@@ -1,10 +1,19 @@
+import type { Metadata } from 'next';
 import { Check } from 'lucide-react';
 import { SiteNav } from '@features/shared/components/site-nav';
 import { SiteFooter } from '@features/shared/components/site-footer';
 import { Reveal, RevealItem, RevealStagger } from '@features/shared/components/reveal';
 import { PLAN_LIMITS } from '@features/billing/plan-limits';
+import { buildMetadata } from '@/lib/seo';
 import { Faq } from './faq';
 import { PricingCheckoutButton } from './pricing-checkout-button';
+
+export const metadata: Metadata = buildMetadata({
+  title: 'Pricing',
+  description:
+    'Simple pricing for every team size. Free plan available. No credit card required.',
+  path: '/pricing',
+});
 
 type Tier = {
   plan: 'free' | 'starter' | 'team' | 'pro';

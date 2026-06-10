@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
 import { SiteNav } from '@features/shared/components/site-nav';
 import { SiteFooter } from '@features/shared/components/site-footer';
 import { Reveal, RevealItem, RevealStagger } from '@features/shared/components/reveal';
+import { buildMetadata } from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({
+  title: 'Changelog',
+  description: 'Releases, fixes, and what we are working on next in Senix.',
+  path: '/changelog',
+});
 
 type Release = {
   date: string;

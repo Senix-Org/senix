@@ -7,11 +7,13 @@ import {
   DocUL,
   DocCard,
 } from '@features/shared/components/docs/doc-elements';
+import { buildMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Welcome to Senix — Docs',
-  description: 'Getting started with Senix, the AI code reviewer for teams shipping with AI tools.',
-};
+export const metadata: Metadata = buildMetadata({
+  title: 'Docs',
+  description: 'Everything you need to connect Senix to your GitHub repos and IDE.',
+  path: '/docs',
+});
 
 export default function DocsIntroPage(): React.ReactElement {
   return (
